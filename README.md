@@ -121,9 +121,9 @@ docker compose up -d
 
 ```mermaid
 graph TD
-    classDef security fill:#fee2e2,stroke:#ef4444,stroke-width:2px;
-    classDef core fill:#e0e7ff,stroke:#6366f1,stroke-width:2px;
-    classDef ops fill:#fef3c7,stroke:#f59e0b,stroke-width:2px;
+    classDef security fill:#fee2e2,stroke:#b91c1c,stroke-width:2px,color:#0f172a;
+    classDef core fill:#e0e7ff,stroke:#4338ca,stroke-width:2px,color:#0f172a;
+    classDef ops fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#0f172a;
 
     web[Web Controllers SSR]:::core --> secret[Secret Lifecycle]:::core
     web --> identity[Identity OIDC]:::core
