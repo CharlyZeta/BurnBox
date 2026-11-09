@@ -8,8 +8,8 @@
 * **Control del Tiempo:** Bean `java.time.Clock` inyectado en todo el dominio; prohibido `Instant.now()`, `LocalDateTime.now()` y `Clock.system*()`.
 
 ## 2. Frameworks y Módulos Core
-* **Framework Principal:** Spring Boot 4.0.x (sobre Spring Framework 7).
-* **Seguridad:** Spring Security 7
+* **Framework Principal:** Spring Boot 3.5.3 (preparado para la generación Spring Boot 4.0 / Spring Framework 7 sobre Java 25).
+* **Seguridad:** Spring Security (Spring Boot starter)
   * DSL de lambdas obligatorio.
   * Configuración partida en beans `Customizer<HttpSecurity>`.
   * Login OIDC (Google y Microsoft Entra ID multi-tenant) con PKCE.
