@@ -89,6 +89,11 @@ public class LocalKeyProvider implements KeyProvider {
         return activeVersion;
     }
 
+    @Override
+    public synchronized void activateNewKey(int version, byte[] kek) {
+        registerKey(new KeyVersion(version, KeyStatus.ACTIVE, kek));
+    }
+
     private KeyVersion getKeyVersion(int version) {
         KeyVersion keyVersion = keyRing.get(version);
         if (keyVersion == null) {

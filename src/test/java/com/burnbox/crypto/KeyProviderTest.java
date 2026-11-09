@@ -59,4 +59,34 @@ class KeyProviderTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Cannot unwrap with RETIRED");
     }
+
+    @Test
+    @DisplayName("FEAT-0017 AC-002, AC-007 & BR-003: Rotación de KEK permite descifrar secretos antiguos en modo DECRYPT_ONLY y re-envolver a nueva clave activa")
+    void keyRotationAllowsReEnvelopeAndLegacyDecryption() {
+        byte[] dek = new byte[32];
+        dek[0] = 0x55;
+        dek[31] = 0x01;
+
+        // Wrap con KEK v1 activa
+        byte[] wrappedV1 = keyProvider.wrap(dek, 1);
+
+        // Rotación a KEK v2
+        byte[] kek2 = new byte[32];
+        kek2[0] = (byte) 0xAA;
+        keyProvider.activateNewKey(2, kek2);
+
+        assertThat(keyProvider.getActiveVersion()).isEqualTo(2);
+
+        // AC-007 / BR-003: Lectura concurrente de secreto en v1 todavía funciona en DECRYPT_ONLY
+        byte[] unwrappedFromV1 = keyProvider.unwrap(wrappedV1, 1);
+        assertThat(unwrappedFromV1).isEqualTo(dek);
+
+        // AC-002: Re-envolver a KEK v2
+        byte[] wrappedV2 = keyProvider.wrap(unwrappedFromV1, 2);
+        assertThat(wrappedV2).isNotEqualTo(wrappedV1);
+
+        // Revelar con la nueva envoltura en KEK v2
+        byte[] unwrappedFromV2 = keyProvider.unwrap(wrappedV2, 2);
+        assertThat(unwrappedFromV2).isEqualTo(dek);
+    }
 }

@@ -121,6 +121,42 @@ public class SecretRepository {
                 .update();
     }
 
+    public record PendingReEnvelopeRecord(UUID id, byte[] wrappedDek, int keyVersion) {}
+
+    public List<PendingReEnvelopeRecord> findSecretsPendingReEnvelope(int targetKeyVersion, int batchSize) {
+        return client().sql("""
+                SELECT id, wrapped_dek, key_version
+                FROM secret
+                WHERE key_version < :targetKeyVersion
+                  AND state = 'ACTIVE'
+                  AND wrapped_dek IS NOT NULL
+                ORDER BY id ASC
+                LIMIT :batchSize
+                FOR UPDATE SKIP LOCKED
+                """)
+                .param("targetKeyVersion", targetKeyVersion)
+                .param("batchSize", batchSize)
+                .query((rs, rowNum) -> new PendingReEnvelopeRecord(
+                        rs.getObject("id", UUID.class),
+                        rs.getBytes("wrapped_dek"),
+                        rs.getInt("key_version")
+                ))
+                .list();
+    }
+
+    public int updateReEnvelopedSecret(UUID id, byte[] newWrappedDek, int newKeyVersion) {
+        return client().sql("""
+                UPDATE secret
+                SET wrapped_dek = :newWrappedDek,
+                    key_version = :newKeyVersion
+                WHERE id = :id
+                """)
+                .param("newWrappedDek", newWrappedDek)
+                .param("newKeyVersion", newKeyVersion)
+                .param("id", id)
+                .update();
+    }
+
     public Optional<Secret> findByTokenHashForUpdate(String tokenHash) {
         return client().sql("""
                 SELECT * FROM secret

@@ -7,4 +7,6 @@ public interface KeyProvider {
     byte[] unwrap(byte[] wrappedDek, int version);
 
     int getActiveVersion();
+
+    void activateNewKey(int version, byte[] kek);
 }

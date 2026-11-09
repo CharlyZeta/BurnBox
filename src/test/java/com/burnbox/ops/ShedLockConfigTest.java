@@ -63,5 +63,11 @@ class ShedLockConfigTest {
         assertThat(sessionLock).isNotNull();
         assertThat(sessionLock.name()).isEqualTo("session-cleanup");
         assertThat(sessionMethod.isAnnotationPresent(Scheduled.class)).isTrue();
+
+        Method reEnvelopeMethod = KeyReEnvelopeJob.class.getMethod("schedule");
+        SchedulerLock reEnvelopeLock = reEnvelopeMethod.getAnnotation(SchedulerLock.class);
+        assertThat(reEnvelopeLock).isNotNull();
+        assertThat(reEnvelopeLock.name()).isEqualTo("key-re-envelope");
+        assertThat(reEnvelopeMethod.isAnnotationPresent(Scheduled.class)).isTrue();
     }
 }

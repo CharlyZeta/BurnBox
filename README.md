@@ -63,6 +63,7 @@ com.burnbox
 | [`FEAT-0014`](contracts/FEAT-0014.md) | Feature | **RESOLVED** | 22/22 ✅ | Destinatario Restringido y Validación de Email (E4 / C-14): restricción de acceso exclusiva a un email de destinatario verificado, validación RFC 5322 en creación `POST /secrets`, exigencia de login OIDC `reveal-login-required` para anónimos, verificación estricta de `email_verified == true` coincidente (case-insensitive), respuesta uniforme indistinguible `reveal-unavailable` ante usuarios no autorizados (anti-enumeración), y emisión de auditoría `SecretAccessDenied` con cero PII en `details`. |
 | [`FEAT-0015`](contracts/FEAT-0015.md) | Feature | **RESOLVED** | 22/22 ✅ | Cadena Criptográfica de Auditoría y Verificación (C-15): hash encadenado SHA-256 (`prev_hash` y `hash`), protección contra bifurcaciones con `UNIQUE(prev_hash)`, inmutabilidad append-only forzada por trigger PostgreSQL `trg_security_event_append_only`, verificador matemático `AuditChainVerifier` contra manipulaciones de datos o eslabones rotos, y vista web SSR `/account/events` con aislamiento estricto por usuario. |
 | [`FEAT-0016`](contracts/FEAT-0016.md) | Feature | **RESOLVED** | 22/22 ✅ | Jobs de Purga e Higiene con ShedLock (C-17): coordinación distribuida mediante tabla `shedlock` y `@SchedulerLock`, registro durable de ejecuciones en `job_run`, procesamiento concurrente seguro con lotes de 500 y `FOR UPDATE SKIP LOCKED`, job `expired-secret-purge` (vencimiento atómico a `EXPIRED` con borrado de columnas confidenciales), `tombstone-cleanup` (depuración de lápidas terminales > 30 días) y `session-cleanup` (purga de sesiones inactivas/expiradas). |
+| [`FEAT-0017`](contracts/FEAT-0017.md) | Feature | **RESOLVED** | 22/22 ✅ | Rotación de Claves KEK y Re-envelope en Lotes (C-19): ciclo de vida de claves maestras en `LocalKeyProvider` con soporte de `DECRYPT_ONLY` para compatibilidad hacia atrás durante la migración, job `key-re-envelope` con lotes de 500 y `FOR UPDATE SKIP LOCKED`, re-envoltura atómica de DEK sin tocar `ciphertext` ni `nonce`, saneamiento inmediato de DEK en memoria (`Arrays.fill`), y emisión del evento de auditoría `KEK_ROTATION_COMPLETED`. |
 
 ---
 
@@ -106,7 +107,7 @@ sequenceDiagram
 docker compose up -d
 ```
 
-### Ejecutar suite completa de tests (187 tests unitarios, de integración, arquitectura y seguridad)
+### Ejecutar suite completa de tests (191 tests unitarios, de integración, arquitectura y seguridad)
 ```bash
 ./mvnw test
 ```
