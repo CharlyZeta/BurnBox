@@ -34,9 +34,13 @@ class SecurityEventRepositoryTest {
     void savesEventWithEmptyDetailsAsEmptyJsonObject() {
         JdbcClient jdbcClient = Mockito.mock(JdbcClient.class);
         JdbcClient.StatementSpec spec = Mockito.mock(JdbcClient.StatementSpec.class);
+        @SuppressWarnings("unchecked")
+        JdbcClient.MappedQuerySpec<String> querySpec = Mockito.mock(JdbcClient.MappedQuerySpec.class);
 
         when(jdbcClient.sql(anyString())).thenReturn(spec);
         when(spec.param(anyString(), any())).thenReturn(spec);
+        when(spec.query(String.class)).thenReturn(querySpec);
+        when(querySpec.optional()).thenReturn(java.util.Optional.empty());
         when(spec.update()).thenReturn(1);
 
         SecurityEventRepository repository = new SecurityEventRepository(providerOf(jdbcClient), objectMapper);

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Historial de Eventos de Seguridad — Burnbox</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 2rem 1rem; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background-color: #1e293b; border-radius: 12px; padding: 2rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-bottom: 2rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+        h1 { font-size: 1.5rem; margin: 0; }
+        .badge { display: inline-block; background-color: #10b981; color: #022c22; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: bold; }
+        .badge-broken { background-color: #ef4444; color: white; }
+        .nav-links { margin-bottom: 1.5rem; display: flex; gap: 1rem; }
+        .nav-links a { color: #38bdf8; text-decoration: none; font-size: 0.9rem; }
+        .nav-links a:hover { text-decoration: underline; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { text-align: left; padding: 0.75rem 0.5rem; border-bottom: 1px solid #334155; font-size: 0.875rem; }
+        th { color: #94a3b8; font-weight: 600; }
+        .hash-mono { font-family: ui-monospace, monospace; font-size: 0.75rem; color: #cbd5e1; }
+        .empty-msg { text-align: center; color: #94a3b8; padding: 2rem; }
+        .integrity-box { background-color: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-links">
+            <a th:href="@{/}">← Volver al inicio</a>
+            <a th:href="@{/account/sessions}">Sesiones activas</a>
+            <a th:href="@{/account/passkeys}">Passkeys FIDO2</a>
+        </div>
+
+        <div class="card">
+            <div class="header">
+                <div>
+                    <h1>Eventos de Seguridad</h1>
+                    <p style="color: #94a3b8; font-size: 0.875rem; margin: 0.25rem 0 0 0;">Cadena criptográfica append-only verificada matemáticamente</p>
+                </div>
+            </div>
+
+            <div class="integrity-box" th:if="${integrity != null}">
+                <div>
+                    <span style="font-size: 0.875rem; font-weight: 600;">Estado de la cadena:</span>
+                    <span th:if="${integrity.valid}" class="badge">INTEGRIDAD VÁLIDA</span>
+                    <span th:unless="${integrity.valid}" class="badge badge-broken">CADENA COMPROMETIDA</span>
+                </div>
+                <div style="font-size: 0.8rem; color: #94a3b8;">
+                    SHA-256 encadenado anti-bifurcación
+                </div>
+            </div>
+
+            <div th:if="${events == null or events.isEmpty()}" class="empty-msg">
+                No se registran eventos de seguridad asociados a tu cuenta.
+            </div>
+
+            <table th:if="${events != null and not events.isEmpty()}">
+                <thead>
+                    <tr>
+                        <th>Fecha y hora</th>
+                        <th>Tipo de evento</th>
+                        <th>Sujeto</th>
+                        <th>Hash del bloque</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="event : ${events}">
+                        <td th:text="${event.occurredAt}">2026-11-09T18:00:00Z</td>
+                        <td>
+                            <strong th:text="${event.eventType}">LOGIN_SUCCESS</strong>
+                        </td>
+                        <td th:text="${event.subjectType + (event.subjectId != null ? ' (' + event.subjectId + ')' : '')}">session (123)</td>
+                        <td class="hash-mono" th:text="${event.truncatedHash}">abcd...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

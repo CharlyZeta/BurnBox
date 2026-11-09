@@ -61,6 +61,7 @@ com.burnbox
 | [`FEAT-0012`](contracts/FEAT-0012.md) | Feature | **RESOLVED** | 22/22 ✅ | Gestión de Passkeys WebAuthn (FIDO2): persistencia en `passkey_credential` (`JdbcClient`), cuarentena de 24 horas (`PENDING_ACTIVATION`) para el primer passkey contra secuestro de sesión, activación inmediata para passkeys subsiguientes, detección estricta de clonación de autenticador mediante verificación de `sign_count`, vista web SSR `/account/passkeys` y eventos `PasskeyEnrolled`, `PasskeyActivated`, `PasskeyRevoked`, `PasskeyCounterAnomaly`. |
 | [`FEAT-0013`](contracts/FEAT-0013.md) | Feature | **RESOLVED** | 22/22 ✅ | Notificaciones Transaccionales por Email con Idempotencia y Reintentos (C-11): tabla `notification_delivery` con constraint unívoco `UNIQUE(source_event_id, template, user_id)`, envío asíncrono con `DefaultEmailSenderClient` hacia Mailpit, política de cero datos sensibles en el mensaje, reintentos con backoff exponencial (`next_retry_at`) y transición a `DEAD` tras 5 intentos fallidos, y eventos de auditoría `NotificationQueued`, `NotificationSent`, `NotificationFailed`, `NotificationDead`. |
 | [`FEAT-0014`](contracts/FEAT-0014.md) | Feature | **RESOLVED** | 22/22 ✅ | Destinatario Restringido y Validación de Email (E4 / C-14): restricción de acceso exclusiva a un email de destinatario verificado, validación RFC 5322 en creación `POST /secrets`, exigencia de login OIDC `reveal-login-required` para anónimos, verificación estricta de `email_verified == true` coincidente (case-insensitive), respuesta uniforme indistinguible `reveal-unavailable` ante usuarios no autorizados (anti-enumeración), y emisión de auditoría `SecretAccessDenied` con cero PII en `details`. |
+| [`FEAT-0015`](contracts/FEAT-0015.md) | Feature | **RESOLVED** | 22/22 ✅ | Cadena Criptográfica de Auditoría y Verificación (C-15): hash encadenado SHA-256 (`prev_hash` y `hash`), protección contra bifurcaciones con `UNIQUE(prev_hash)`, inmutabilidad append-only forzada por trigger PostgreSQL `trg_security_event_append_only`, verificador matemático `AuditChainVerifier` contra manipulaciones de datos o eslabones rotos, y vista web SSR `/account/events` con aislamiento estricto por usuario. |
 
 ---
 
@@ -104,7 +105,7 @@ sequenceDiagram
 docker compose up -d
 ```
 
-### Ejecutar suite completa de tests (166 tests unitarios, de integración, arquitectura y seguridad)
+### Ejecutar suite completa de tests (172 tests unitarios, de integración, arquitectura y seguridad)
 ```bash
 ./mvnw test
 ```
