@@ -79,6 +79,7 @@ public class RevealController {
     public String revealSecret(
             @PathVariable("token") String token,
             @RequestParam(value = "_csrf", required = false) String formCsrf,
+            @RequestParam(value = "passphrase", required = false) String passphrase,
             @CookieValue(value = CSRF_COOKIE_NAME, required = false) String cookieCsrf,
             HttpServletRequest request,
             HttpServletResponse response,
@@ -98,7 +99,13 @@ public class RevealController {
         }
 
         String tokenHash = tokenService.hashToken(token);
-        SecretAccessResult result = secretService.consumeSecret(tokenHash);
+        SecretAccessResult result = (passphrase != null && !passphrase.isBlank())
+                ? secretService.consumeSecret(tokenHash, passphrase.trim())
+                : secretService.consumeSecret(tokenHash);
+
+        if (result == null) {
+            result = new SecretAccessResult.NotAvailable("Internal error");
+        }
 
         // BR-007 / AC-008: Pattern matching exhaustivo sobre sealed interface SecretAccessResult
         return switch (result) {
@@ -108,6 +115,18 @@ public class RevealController {
                 model.addAttribute("maxViews", success.maxViews());
                 model.addAttribute("state", success.state());
                 yield "reveal-content";
+            }
+            case SecretAccessResult.PassphraseRequired passphraseRequired -> {
+                model.addAttribute("token", token);
+                model.addAttribute("csrfToken", cookieCsrf);
+                yield "reveal-passphrase";
+            }
+            case SecretAccessResult.WrongPassphrase wrong -> {
+                model.addAttribute("token", token);
+                model.addAttribute("csrfToken", cookieCsrf);
+                model.addAttribute("remainingAttempts", wrong.remainingAttempts());
+                model.addAttribute("error", "Contraseña incorrecta. Le quedan " + wrong.remainingAttempts() + " intento(s) antes de su destrucción.");
+                yield "reveal-passphrase";
             }
             case SecretAccessResult.NotAvailable notAvailable -> {
                 recordFailureIfPossible(request, tokenHash);

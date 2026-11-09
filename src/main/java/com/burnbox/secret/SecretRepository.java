@@ -90,6 +90,36 @@ public class SecretRepository {
                 .optional();
     }
 
+    public void recordFailedAttempt(UUID id, int failedAttempts) {
+        client().sql("""
+                UPDATE secret
+                SET failed_attempts = :failedAttempts
+                WHERE id = :id
+                """)
+                .param("failedAttempts", failedAttempts)
+                .param("id", id)
+                .update();
+    }
+
+    public void destroyByAbuse(UUID id, int failedAttempts, Instant destroyedAt) {
+        client().sql("""
+                UPDATE secret
+                SET state = 'DESTROYED_BY_ABUSE',
+                    failed_attempts = :failedAttempts,
+                    consumed_at = :destroyedAt,
+                    ciphertext = NULL,
+                    nonce = NULL,
+                    wrapped_dek = NULL,
+                    passphrase_salt = NULL,
+                    recipient_email = NULL
+                WHERE id = :id
+                """)
+                .param("failedAttempts", failedAttempts)
+                .param("destroyedAt", Timestamp.from(destroyedAt))
+                .param("id", id)
+                .update();
+    }
+
     public void updateStateAndViews(UUID id, SecretState newState, int views, Instant consumedAt) {
         if (newState.isTerminal()) {
             // BR-003: Vaciado irrevocable de columnas sensibles en estados terminales

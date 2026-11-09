@@ -41,7 +41,8 @@ class SecretServiceTest {
         clock = new MutableClock(baseTime);
         keyProvider = new LocalKeyProvider();
         tokenService = new CryptoTokenService();
-        envelopeService = new SecretEnvelopeService(keyProvider, tokenService);
+        com.burnbox.crypto.PassphraseKeyDeriver keyDeriver = new com.burnbox.crypto.PassphraseKeyDeriver();
+        envelopeService = new SecretEnvelopeService(keyProvider, tokenService, keyDeriver);
         securityEventPublisher = Mockito.mock(SecurityEventPublisher.class);
         eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
         repository = new InMemorySecretRepository();

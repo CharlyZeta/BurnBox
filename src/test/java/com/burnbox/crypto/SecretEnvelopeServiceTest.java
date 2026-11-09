@@ -14,7 +14,8 @@ class SecretEnvelopeServiceTest {
 
     private final LocalKeyProvider keyProvider = new LocalKeyProvider();
     private final CryptoTokenService tokenService = new CryptoTokenService();
-    private final SecretEnvelopeService envelopeService = new SecretEnvelopeService(keyProvider, tokenService);
+    private final PassphraseKeyDeriver keyDeriver = new PassphraseKeyDeriver();
+    private final SecretEnvelopeService envelopeService = new SecretEnvelopeService(keyProvider, tokenService, keyDeriver);
 
     @Test
     @DisplayName("AC-003 / AC-004 / BR-004 / BR-005: Cifrado y descifrado de texto de hasta 64 KiB con AAD correcto")

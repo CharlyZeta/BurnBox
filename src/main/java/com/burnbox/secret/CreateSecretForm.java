@@ -5,8 +5,13 @@ import java.time.Duration;
 public record CreateSecretForm(
         String content,
         String ttl,
-        Integer maxViews
+        Integer maxViews,
+        String passphrase
 ) {
+    public CreateSecretForm(String content, String ttl, Integer maxViews) {
+        this(content, ttl, maxViews, null);
+    }
+
     public CreateSecretForm {
         if (ttl == null || ttl.isBlank()) {
             ttl = "1h";

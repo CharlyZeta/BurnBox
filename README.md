@@ -54,6 +54,7 @@ com.burnbox
 | [`FEAT-0005`](contracts/FEAT-0005.md) | Feature | **RESOLVED** | 24/24 ✅ | Revelado anónimo SSR: página intermedia `GET /s/{token}` inmune a crawlers, `POST /s/{token}/reveal` con CSRF por doble envío anónimo (`SameSite=Strict`), respuesta directa sin PRG, respuesta uniforme para no disponibles, cabeceras `no-store` y `noindex`. |
 | [`FEAT-0006`](contracts/FEAT-0006.md) | Feature | **RESOLVED** | 23/23 ✅ | Creación web de secretos SSR: formulario principal `GET /`, validación de carga útil estricta (máx 64 KiB), selector de vencimiento (5m, 1h, 1d, 7d) y límite de visitas (1..10), endpoint `POST /secrets`, presentación de link único con botón de copiado (`secret-created.html`) sin `th:utext`. |
 | [`FEAT-0007`](contracts/FEAT-0007.md) | Feature | **RESOLVED** | 22/22 ✅ | Rate Limiting y Protección contra Abuso: buckets Bucket4j en memoria (`reveal-ip` 20/min, `reveal-token` 10/min, `create-ip` 30/h), normalización IPv4 /24 e IPv6 /64, respuesta uniforme 429 con cabecera `Retry-After`, bloqueo por abuso de 1 hora ante 10 fallos de token en 5 min, y emisión del evento `AbuseIpFlagged`. |
+| [`FEAT-0008`](contracts/FEAT-0008.md) | Feature | **RESOLVED** | 22/22 ✅ | Secretos Protegidos por Passphrase (E3): KDF Argon2id con sal de 16 bytes y 19 MiB de memoria, semáforo de concurrencia acotado a 4 derivaciones, doble envoltura DEK (`passphraseKey` + KEK), pantalla SSR de contraseña con contador de intentos restantes, y autodestrucción atómica irreversible con emisión de `SecretDestroyedByAbuse` tras 5 fallos. |
 
 ---
 
@@ -97,7 +98,7 @@ sequenceDiagram
 docker compose up -d
 ```
 
-### Ejecutar suite completa de tests (81 tests unitarios, de integración, arquitectura y seguridad)
+### Ejecutar suite completa de tests (94 tests unitarios, de integración, arquitectura y seguridad)
 ```bash
 ./mvnw test
 ```

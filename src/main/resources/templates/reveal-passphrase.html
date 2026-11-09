@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Burnbox — Secreto protegido por contraseña</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --danger-bg: #7f1d1d;
+            --danger-border: #dc2626;
+            --danger-text: #fca5a5;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2.5rem;
+            max-width: 480px;
+            width: 100%;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 0.75rem;
+        }
+
+        p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+        }
+
+        .error-alert {
+            background-color: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            color: var(--danger-text);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            margin-bottom: 1.25rem;
+            text-align: left;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="password"] {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="password"]:focus {
+            border-color: var(--accent-color);
+        }
+
+        .btn-reveal {
+            width: 100%;
+            background-color: var(--accent-color);
+            color: white;
+            font-weight: 600;
+            font-size: 1rem;
+            padding: 0.85rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-reveal:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .warning-footer {
+            margin-top: 1.5rem;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">🔒</div>
+        <h1>Contraseña requerida</h1>
+        <p>Este secreto está cifrado adicionalmente con una contraseña definida por su emisor.</p>
+
+        <div th:if="${error != null}" class="error-alert" th:text="${error}">
+            Contraseña incorrecta.
+        </div>
+
+        <form th:action="@{'/s/' + ${token} + '/reveal'}" method="post">
+            <input type="hidden" name="_csrf" th:value="${csrfToken}"/>
+            <div class="form-group">
+                <label for="passphrase">Ingrese la contraseña del secreto</label>
+                <input type="password" id="passphrase" name="passphrase" required autofocus
+                       placeholder="••••••••••••" autocomplete="current-password" maxlength="128"/>
+            </div>
+            <button type="submit" class="btn-reveal">Desbloquear y Revelar</button>
+        </form>
+
+        <div class="warning-footer">
+            Atención: tras 5 intentos fallidos el secreto será destruido automáticamente.
+        </div>
+    </div>
+</body>
+</html>

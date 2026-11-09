@@ -82,13 +82,25 @@ public class SecretWebController {
         Duration ttl = form.parseTtl();
         UUID ownerUserId = resolveOwnerUserId();
 
+        String passphrase = (form.passphrase() != null && !form.passphrase().isBlank())
+                ? form.passphrase().trim()
+                : null;
+
+        if (passphrase != null && (passphrase.length() < 8 || passphrase.length() > 128)) {
+            response.setStatus(HttpStatus.BAD_REQUEST.value());
+            model.addAttribute("error", "La contraseña debe tener entre 8 y 128 caracteres");
+            model.addAttribute("form", form);
+            return "index";
+        }
+
         CreateSecretCommand cmd = new CreateSecretCommand(
                 plaintext,
                 ttl,
                 maxViews,
                 ownerUserId,
                 null,
-                null
+                null,
+                passphrase
         );
 
         CreateSecretResult result = secretService.createSecret(cmd);

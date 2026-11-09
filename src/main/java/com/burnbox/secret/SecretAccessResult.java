@@ -5,7 +5,9 @@ package com.burnbox.secret;
  */
 public sealed interface SecretAccessResult permits
         SecretAccessResult.Success,
-        SecretAccessResult.NotAvailable {
+        SecretAccessResult.NotAvailable,
+        SecretAccessResult.PassphraseRequired,
+        SecretAccessResult.WrongPassphrase {
 
     record Success(
             byte[] plaintext,
@@ -17,6 +19,14 @@ public sealed interface SecretAccessResult permits
 
     record NotAvailable(
             String reason
+    ) implements SecretAccessResult {
+    }
+
+    record PassphraseRequired() implements SecretAccessResult {
+    }
+
+    record WrongPassphrase(
+            int remainingAttempts
     ) implements SecretAccessResult {
     }
 }
