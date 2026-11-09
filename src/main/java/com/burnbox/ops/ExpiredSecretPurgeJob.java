@@ -33,6 +33,9 @@ public class ExpiredSecretPurgeJob {
     private final SecurityEventPublisher securityEventPublisher;
     private final Clock clock;
 
+    @org.springframework.beans.factory.annotation.Value("${burnbox.scheduler.enabled:true}")
+    private boolean schedulerEnabled = true;
+
     public ExpiredSecretPurgeJob(
             SecretRepository secretRepository,
             JobRunRepository jobRunRepository,
@@ -49,8 +52,10 @@ public class ExpiredSecretPurgeJob {
 
     @Scheduled(cron = "${burnbox.jobs.expired-secret-purge.cron:0 * * * * *}")
     @SchedulerLock(name = JOB_NAME, lockAtMostFor = "PT2M", lockAtLeastFor = "PT2S")
-    @ConditionalOnProperty(name = "burnbox.scheduler.enabled", havingValue = "true", matchIfMissing = true)
     public void schedule() {
+        if (!schedulerEnabled) {
+            return;
+        }
         run();
     }
 

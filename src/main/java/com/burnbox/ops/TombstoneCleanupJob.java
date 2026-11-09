@@ -28,6 +28,9 @@ public class TombstoneCleanupJob {
     private final JobRunRepository jobRunRepository;
     private final Clock clock;
 
+    @org.springframework.beans.factory.annotation.Value("${burnbox.scheduler.enabled:true}")
+    private boolean schedulerEnabled = true;
+
     public TombstoneCleanupJob(
             SecretRepository secretRepository,
             JobRunRepository jobRunRepository,
@@ -40,8 +43,10 @@ public class TombstoneCleanupJob {
 
     @Scheduled(cron = "${burnbox.jobs.tombstone-cleanup.cron:0 0 3 * * *}")
     @SchedulerLock(name = JOB_NAME, lockAtMostFor = "PT30M", lockAtLeastFor = "PT2S")
-    @ConditionalOnProperty(name = "burnbox.scheduler.enabled", havingValue = "true", matchIfMissing = true)
     public void schedule() {
+        if (!schedulerEnabled) {
+            return;
+        }
         run();
     }
 

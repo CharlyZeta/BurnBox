@@ -34,6 +34,9 @@ public class KeyReEnvelopeJob {
     private final SecurityEventPublisher securityEventPublisher;
     private final Clock clock;
 
+    @org.springframework.beans.factory.annotation.Value("${burnbox.scheduler.enabled:true}")
+    private boolean schedulerEnabled = true;
+
     public KeyReEnvelopeJob(
             SecretRepository secretRepository,
             KeyProvider keyProvider,
@@ -50,8 +53,10 @@ public class KeyReEnvelopeJob {
 
     @Scheduled(cron = "${burnbox.jobs.key-re-envelope.cron:0 */30 * * * *}")
     @SchedulerLock(name = JOB_NAME, lockAtMostFor = "PT30M", lockAtLeastFor = "PT5S")
-    @ConditionalOnProperty(name = "burnbox.scheduler.enabled", havingValue = "true", matchIfMissing = true)
     public void schedule() {
+        if (!schedulerEnabled) {
+            return;
+        }
         run();
     }
 

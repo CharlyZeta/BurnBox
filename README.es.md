@@ -5,7 +5,7 @@
 [![Java 25](https://img.shields.io/badge/Java-25%20LTS-orange?logo=openjdk)](https://openjdk.org/projects/jdk/25/)
 [![Spring Boot 3.5](https://img.shields.io/badge/Spring%20Boot-3.5.3-green?logo=springboot)](https://spring.io/projects/spring-boot)
 [![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-blue?logo=postgresql)](https://www.postgresql.org/)
-[![Tests](https://img.shields.io/badge/Tests-199%20Pasando-brightgreen)](src/test/java/com/burnbox/)
+[![Tests](https://img.shields.io/badge/Tests-200%20Pasando-brightgreen)](src/test/java/com/burnbox/)
 [![Metodología](https://img.shields.io/badge/Metodolog%C3%ADa-SDD--GL%20v0.6.4-purple)](https://github.com/CharlyZeta/SDD-GL)
 [![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-blue.svg)](LICENSE)
 
@@ -35,7 +35,7 @@ A diferencia de pastebins básicos o clones de Privnote, BurnBox está diseñado
 |---|---|---|
 | **Seguridad Defensiva** | Cifrado envelope AES-256-GCM, KDF Argon2id, prevención de secuestro de cuentas anti-nOAuth, cuarentena de passkeys WebAuthn, registro criptográfico de auditoría, respuestas uniformes anti-enumeración. | [`com.burnbox.crypto`](src/main/java/com/burnbox/crypto/), [`com.burnbox.audit`](src/main/java/com/burnbox/audit/) |
 | **Backend y Arquitectura** | Separación estricta de módulos con Spring Modulith, SQL explícito con Spring Data `JdbcClient` (cero problemas de dirty tracking de JPA), concurrencia no bloqueante con PostgreSQL 17 `SKIP LOCKED`, `ScopedValue` de Java 25. | [`com.burnbox.secret`](src/main/java/com/burnbox/secret/), [`ArchitectureTest`](src/test/java/com/burnbox/ArchitectureTest.java) |
-| **Testing y Calidad** | 199 pruebas automatizadas, reglas arquitectónicas verificadas con ArchUnit, pruebas aisladas WebMvc y SpringBootTest, cero tests intermitentes, 100% First-Pass Quality Rate en 18 contratos. | [`src/test/java/com/burnbox`](src/test/java/com/burnbox/) |
+| **Testing y Calidad** | 200 pruebas automatizadas, reglas arquitectónicas verificadas con ArchUnit, pruebas aisladas WebMvc y SpringBootTest, cero tests intermitentes, 100% First-Pass Quality Rate en 18 contratos. | [`src/test/java/com/burnbox`](src/test/java/com/burnbox/) |
 | **Operación y Resiliencia** | Coordinación distribuida con ShedLock, rotación de KEK sin tiempo de inactividad, jobs de higiene de lápidas y sesiones, health indicators dedicados de Actuator sin fuga de secretos. | [`com.burnbox.ops`](src/main/java/com/burnbox/ops/) |
 
 ---
@@ -44,7 +44,7 @@ A diferencia de pastebins básicos o clones de Privnote, BurnBox está diseñado
 
 Creemos en la transparencia técnica total:
 
-### ✅ Listo y Verificado en Producción (18 Contratos Resueltos · 199 Tests)
+### ✅ Listo y Verificado en Producción (18 Contratos Resueltos · 200 Tests)
 - **Núcleo Criptográfico:** Tokens de 256 bits generados con `SecureRandom`, hash SHA-256 de tokens, cifrado AES-256-GCM con nonces de 96 bits, etiquetas de autenticación AAD, envoltura KEK con AESWrap RFC 3394 ([`FEAT-0002`](contracts/FEAT-0002.md)).
 - **Ciclo de Vida del Secreto:** Bloqueo pesimista (`FOR UPDATE`), consumo atómico y vaciado inmediato de datos sensibles en estados terminales ([`FEAT-0004`](contracts/FEAT-0004.md)).
 - **Flujo Seguro de Revelado Web:** Vista intermedia en `GET /s/{token}` (inmune al consumo por bots de Slack o antivirus) y consumo intencional en `POST /s/{token}/reveal` con cookie CSRF anónima de doble envío ([`FEAT-0005`](contracts/FEAT-0005.md)).
@@ -203,7 +203,7 @@ Cuando un secreto no existe, ha expirado, ya fue consumido o pertenece a un dest
 
 BurnBox cuenta con una suite rigurosa de pruebas multi-capa:
 
-- **199 Pruebas Automatizadas:** Unitarias, de integración, controladores WebMvc y filtros de seguridad.
+- **200 Pruebas Automatizadas:** Unitarias, de integración, controladores WebMvc y filtros de seguridad.
 - **Cero Fallos, Cero Errores:** 100% de éxito en cada build.
 - **Reglas Arquitectónicas con ArchUnit ([`ArchitectureTest.java`](src/test/java/com/burnbox/ArchitectureTest.java)):**
   - **Prohibido `Instant.now()` fuera de `ClockConfig`:** Todo el tiempo proviene del bean `Clock` inyectado, eliminando pruebas no reproducibles.
@@ -343,7 +343,7 @@ burnbox/
 │   │       ├── db/migration/# Migraciones Flyway (V1 a V9)
 │   │       ├── templates/   # Plantillas Thymeleaf SSR sin th:utext
 │   │       └── application.yaml
-│   └── test/java/com/burnbox/ # 199 pruebas automatizadas unitarias, de integración y arquitectura
+│   └── test/java/com/burnbox/ # 200 pruebas automatizadas unitarias, de integración y arquitectura
 ├── compose.yaml             # Configuración local de PostgreSQL 17 y Mailpit
 ├── CONSTITUTION.md          # 12 principios arquitectónicos inviolables
 ├── SECURITY.md              # Política de divulgación de vulnerabilidades

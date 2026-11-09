@@ -44,6 +44,27 @@ class ShedLockConfigTest {
     }
 
     @Test
+    @DisplayName("C-17 / Fallback: Provee fallback LockProvider sin errores cuando no hay DataSource")
+    void createsFallbackLockProviderWhenDataSourceNotAvailable() {
+        org.springframework.beans.factory.ObjectProvider<DataSource> emptyProvider = mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(emptyProvider.getIfAvailable()).thenReturn(null);
+
+        ShedLockConfig config = new ShedLockConfig();
+        LockProvider provider = config.lockProvider(emptyProvider);
+
+        assertThat(provider).isNotNull();
+        net.javacrumbs.shedlock.core.LockConfiguration lockConfig = new net.javacrumbs.shedlock.core.LockConfiguration(
+                java.time.Instant.parse("2026-11-09T10:00:00Z"),
+                "test-lock",
+                java.time.Duration.ofMinutes(1),
+                java.time.Duration.ZERO
+        );
+        java.util.Optional<net.javacrumbs.shedlock.core.SimpleLock> lock = provider.lock(lockConfig);
+        assertThat(lock).isPresent();
+        lock.get().unlock();
+    }
+
+    @Test
     @DisplayName("AC-007: Los jobs de higiene declaran anotación @SchedulerLock con nombre único y tiempo acotado")
     void jobsDeclareSchedulerLock() throws NoSuchMethodException {
         Method expiredMethod = ExpiredSecretPurgeJob.class.getMethod("schedule");

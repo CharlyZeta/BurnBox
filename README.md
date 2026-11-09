@@ -5,7 +5,7 @@
 [![Java 25](https://img.shields.io/badge/Java-25%20LTS-orange?logo=openjdk)](https://openjdk.org/projects/jdk/25/)
 [![Spring Boot 3.5](https://img.shields.io/badge/Spring%20Boot-3.5.3-green?logo=springboot)](https://spring.io/projects/spring-boot)
 [![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-blue?logo=postgresql)](https://www.postgresql.org/)
-[![Tests](https://img.shields.io/badge/Tests-199%20Passing-brightgreen)](src/test/java/com/burnbox/)
+[![Tests](https://img.shields.io/badge/Tests-200%20Passing-brightgreen)](src/test/java/com/burnbox/)
 [![Methodology](https://img.shields.io/badge/Methodology-SDD--GL%20v0.6.4-purple)](https://github.com/CharlyZeta/SDD-GL)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -35,7 +35,7 @@ Unlike simple pastebins or Privnote clones, BurnBox is engineered with defense-i
 |---|---|---|
 | **Defensive Security** | AES-256-GCM envelope encryption, Argon2id KDF, anti-nOAuth account hijack prevention, WebAuthn passkey quarantine, cryptographic audit ledger, uniform anti-enumeration responses. | [`com.burnbox.crypto`](src/main/java/com/burnbox/crypto/), [`com.burnbox.audit`](src/main/java/com/burnbox/audit/) |
 | **Backend & Architecture** | Spring Modulith strict package slices, pure SQL with Spring Data `JdbcClient` (zero JPA dirty tracking), PostgreSQL 17 `SKIP LOCKED` concurrency, Java 25 `ScopedValue`. | [`com.burnbox.secret`](src/main/java/com/burnbox/secret/), [`ArchitectureTest`](src/test/java/com/burnbox/ArchitectureTest.java) |
-| **Testing & Quality** | 199 automated tests, ArchUnit architectural enforcement, WebMvc and SpringBootTest slices, zero flaky tests, 100% First-Pass Quality Rate across 18 contracts. | [`src/test/java/com/burnbox`](src/test/java/com/burnbox/) |
+| **Testing & Quality** | 200 automated tests, ArchUnit architectural enforcement, WebMvc and SpringBootTest slices, zero flaky tests, 100% First-Pass Quality Rate across 18 contracts. | [`src/test/java/com/burnbox`](src/test/java/com/burnbox/) |
 | **Operations & Resilience** | ShedLock distributed coordination, background KEK rotation without downtime, automated tombstone and session hygiene jobs, custom Actuator health indicators without PII leakage. | [`com.burnbox.ops`](src/main/java/com/burnbox/ops/) |
 
 ---
@@ -44,7 +44,7 @@ Unlike simple pastebins or Privnote clones, BurnBox is engineered with defense-i
 
 We believe in complete technical transparency:
 
-### ✅ Production-Ready & Verified (18 Contracts Resolved · 199 Tests)
+### ✅ Production-Ready & Verified (18 Contracts Resolved · 200 Tests)
 - **Core Crypto:** 256-bit SecureRandom tokens, SHA-256 token hashing, AES-256-GCM encryption with 96-bit nonces, AAD authentication tags, RFC 3394 AESWrap KEK envelope ([`FEAT-0002`](contracts/FEAT-0002.md)).
 - **Secret Lifecycle:** Pessimistic locking (`FOR UPDATE`), atomic consumption, instant ciphertext zeroing on terminal states ([`FEAT-0004`](contracts/FEAT-0004.md)).
 - **Safe Reveal Web Flow:** Two-step `GET /s/{token}` intermediate view (immune to Slackbot/crawler consumption) and `POST /s/{token}/reveal` with anonymous double-submit CSRF cookie ([`FEAT-0005`](contracts/FEAT-0005.md)).
@@ -203,7 +203,7 @@ When a secret does not exist, has already been consumed, expired, or belongs to 
 
 BurnBox maintains a rigorous multi-layer test suite verified on every change:
 
-- **199 Automated Tests:** Unit tests, integration tests, MVC controllers, and security filters.
+- **200 Automated Tests:** Unit tests, integration tests, MVC controllers, and security filters.
 - **Zero Failures, Zero Errors:** 100% pass rate.
 - **ArchUnit Architectural Rules ([`ArchitectureTest.java`](src/test/java/com/burnbox/ArchitectureTest.java)):**
   - **No `Instant.now()` outside `ClockConfig`:** Prevents non-deterministic time bugs; all timestamps originate from an injected `Clock` bean.
@@ -343,7 +343,7 @@ burnbox/
 │   │       ├── db/migration/# Flyway forward migrations (V1 to V9)
 │   │       ├── templates/   # Thymeleaf SSR views without th:utext
 │   │       └── application.yaml
-│   └── test/java/com/burnbox/ # 199 automated unit, integration, and arch tests
+│   └── test/java/com/burnbox/ # 200 automated unit, integration, and arch tests
 ├── compose.yaml             # Local PostgreSQL 17 & Mailpit setup
 ├── CONSTITUTION.md          # 12 inviolable architectural principles
 ├── SECURITY.md              # Vulnerability disclosure policy

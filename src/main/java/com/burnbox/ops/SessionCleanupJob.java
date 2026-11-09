@@ -28,6 +28,9 @@ public class SessionCleanupJob {
     private final JobRunRepository jobRunRepository;
     private final Clock clock;
 
+    @org.springframework.beans.factory.annotation.Value("${burnbox.scheduler.enabled:true}")
+    private boolean schedulerEnabled = true;
+
     public SessionCleanupJob(
             UserSessionRepository userSessionRepository,
             JobRunRepository jobRunRepository,
@@ -40,8 +43,10 @@ public class SessionCleanupJob {
 
     @Scheduled(cron = "${burnbox.jobs.session-cleanup.cron:0 */15 * * * *}")
     @SchedulerLock(name = JOB_NAME, lockAtMostFor = "PT10M", lockAtLeastFor = "PT2S")
-    @ConditionalOnProperty(name = "burnbox.scheduler.enabled", havingValue = "true", matchIfMissing = true)
     public void schedule() {
+        if (!schedulerEnabled) {
+            return;
+        }
         run();
     }
 
