@@ -27,7 +27,14 @@ spring:
     cache: false
     mode: HTML
 
+logging:
+  structured:
+    format:
+      console: ecs
+
 burnbox:
+  security:
+    ip-hash-salt: ${BURNBOX_IP_HASH_SALT:burnbox-default-ip-hash-salt-for-dev}
   scheduler:
     enabled: true
   demo:

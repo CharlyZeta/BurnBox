@@ -1,38 +1,38 @@
 {
   "schema_version": 1,
   "first_seen": "2026-11-08T22:13:02.495Z",
-  "last_updated": "2026-11-09T13:04:11.481Z",
+  "last_updated": "2026-11-09T13:45:38.631Z",
   "sessions": 0,
   "session_log": [],
   "clients": {},
   "sources": {
     "mcp": 0,
-    "cli": 149
+    "cli": 199
   },
   "by_type": {
-    "feature": 129,
+    "feature": 176,
     "fix": 0,
-    "unknown": 20
+    "unknown": 23
   },
   "cli_commands": {
-    "status": 12,
+    "status": 14,
     "new": 5,
     "graph": 4,
-    "validate": 29,
-    "next": 4,
-    "approve": 2,
-    "loop": 91,
-    "report": 2
+    "validate": 30,
+    "next": 5,
+    "approve": 3,
+    "loop": 135,
+    "report": 3
   },
   "tools": {
-    "sdd_get_status": 20,
+    "sdd_get_status": 23,
     "sdd_create_contract": 5,
-    "sdd_validate_gate": 31,
-    "sdd_step_loop": 91,
-    "sdd_get_metrics": 2
+    "sdd_validate_gate": 33,
+    "sdd_step_loop": 135,
+    "sdd_get_metrics": 3
   },
   "totals": {
-    "calls": 149,
+    "calls": 199,
     "errors": 0
   }
 }
