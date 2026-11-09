@@ -5,4 +5,7 @@ target/
 .vscode/
 .env
 *.log
+*.dump
+*.dumpstream
+*.swp
 .DS_Store
