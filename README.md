@@ -52,6 +52,7 @@ com.burnbox
 | [`FEAT-0003`](contracts/FEAT-0003.md) | Feature | **RESOLVED** | 22/22 ✅ | Contexto con `ScopedValue` de Java 25, puerto `SecurityEventPublisher`, `HmacIpHasher`, logging estructurado ECS JSON, test canario de detección de fugas, persistencia en `security_event`. |
 | [`FEAT-0004`](contracts/FEAT-0004.md) | Feature | **RESOLVED** | 24/24 ✅ | Ciclo de vida del secreto: `SecretState` (`ACTIVE`, `CONSUMED`, `EXPIRED`, etc.), consumo atómico pesimista con `SELECT ... FOR UPDATE`, vaciado inmediato de ciphertext en estados terminales, eventos de dominio. |
 | [`FEAT-0005`](contracts/FEAT-0005.md) | Feature | **RESOLVED** | 24/24 ✅ | Revelado anónimo SSR: página intermedia `GET /s/{token}` inmune a crawlers, `POST /s/{token}/reveal` con CSRF por doble envío anónimo (`SameSite=Strict`), respuesta directa sin PRG, respuesta uniforme para no disponibles, cabeceras `no-store` y `noindex`. |
+| [`FEAT-0006`](contracts/FEAT-0006.md) | Feature | **RESOLVED** | 23/23 ✅ | Creación web de secretos SSR: formulario principal `GET /`, validación de carga útil estricta (máx 64 KiB), selector de vencimiento (5m, 1h, 1d, 7d) y límite de visitas (1..10), endpoint `POST /secrets`, presentación de link único con botón de copiado (`secret-created.html`) sin `th:utext`. |
 
 ---
 
@@ -95,7 +96,7 @@ sequenceDiagram
 docker compose up -d
 ```
 
-### Ejecutar suite completa de tests (53 tests unitarios, de arquitectura y seguridad)
+### Ejecutar suite completa de tests (61 tests unitarios, de integración, arquitectura y seguridad)
 ```bash
 ./mvnw test
 ```
