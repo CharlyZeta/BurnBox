@@ -1,0 +1,1160 @@
+Burnbox - Desarrollo detallado del proyecto
+8 nov 2026 · @Gerardo Maidana
+1. Visión, alcance y principios
+Burnbox es una app web renderizada en servidor para compartir secretos (contraseñas, tokens, claves) mediante links de un solo uso que se destruyen al leerse o al vencer. El proyecto existe para demostrar, en un dominio chico y fácil de explicar, un stack de seguridad completo sobre Java 25 y Spring Boot 4. El nombre es provisional.
+Qué demuestra en el portfolio
+• Login con cuentas de Google y Microsoft (OIDC con PKCE), incluido el caso multi-tenant de Microsoft y una política de vinculación de cuentas que evita nOAuth.
+• Sesiones server-side con gestión visible (listar y revocar) y cookies endurecidas.
+• Passkeys (WebAuthn) como segundo factor y step-up para acciones sensibles.
+• Criptografía aplicada: cifrado envelope con AES-GCM, rotación de claves y destrucción de datos.
+• Consumo exactamente-una-vez bajo concurrencia.
+• Auditoría con cadena de hashes verificable.
+• Trabajo de fondo: jobs idempotentes, eventos durables y notificaciones.
+• Java moderno (records, sealed, pattern matching, Scoped Values, virtual threads) con Spring Boot 4, Security 7 y Modulith.
+Alcance del MVP
+Secretos de texto de hasta 64 KiB, creados solo por usuarios autenticados y leídos por cualquiera que tenga el link. La lectura puede exigir una passphrase o estar restringida a un destinatario autenticado. El dueño ve estado, lecturas y vencimiento de sus secretos, nunca el contenido ni el link.
+Fuera de alcance del MVP
+Archivos adjuntos, cifrado zero-knowledge del lado del cliente, API pública y CLI, organizaciones, cobros, app móvil y login con password propio. Las extensiones viables están en la sección 16.
+Principios que todo contrato debe respetar
+1. Sin passwords propios: la identidad viene solo de OIDC y la app no guarda credenciales de usuario.
+2. Corrección sin jobs: expiración y consumo se aplican en la lectura; los jobs son higiene y no condicionan la corrección.
+3. Defensa en profundidad: cada protección tiene una segunda capa (token no adivinable, rate limiting y cifrado).
+4. Indistinguible para anónimos: un link inexistente, vencido o consumido produce la misma respuesta.
+5. Sin PII ni secretos en logs ni en auditoría.
+6. Todo el tiempo pasa por un Clock inyectado; no hay Instant.now() suelto.
+7. Cada comportamiento se prueba con el test más chico posible (sección 11).
+2. Actores y escenarios de uso
+Hay cuatro actores y once escenarios; el visitante anónimo es el destinatario y nunca necesita cuenta para leer un secreto común.
+Actor
+Quién es
+Qué puede hacer
+Visitante anónimo
+Destinatario con el link
+Revelar un secreto (con passphrase si corresponde)
+Usuario
+Persona autenticada con Google o Microsoft
+Crear y borrar sus secretos, gestionar identidades, passkeys y sesiones, borrar su cuenta
+Administrador
+Usuario cuya identidad está en una allowlist de configuración
+Ver el panel de operaciones y disparar rotación de claves
+Sistema
+Jobs y consumidores de eventos
+Purgar, verificar, rotar, notificar
+Id
+Escenario
+Resultado esperado
+E1
+Un usuario crea un secreto
+Se muestra el link una sola vez; el secreto queda cifrado y activo
+E2
+El destinatario abre el link y lo revela
+Ve el contenido una vez; el secreto se destruye al llegar al máximo de lecturas
+E3
+El destinatario revela un secreto con passphrase
+Una passphrase correcta lo revela; cinco errores lo destruyen
+E4
+Un secreto restringido a un destinatario
+Solo lo revela quien inicia sesión con un email verificado igual al indicado
+E5
+Un visitante inicia sesión con Google o Microsoft
+Se crea o se reconoce al usuario según la política de la sección 6
+E6
+Un usuario vincula una segunda identidad
+Ambos proveedores entran a la misma cuenta, solo desde una sesión autenticada
+E7
+Un usuario registra un passkey
+Queda activo de inmediato o tras un período de espera, según la regla de la sección 6
+E8
+Un usuario ejecuta una acción sensible
+Se le exige un factor fuerte reciente antes de continuar
+E9
+Un usuario revoca una sesión
+Esa sesión deja de funcionar en su próximo request
+E10
+Un usuario pide borrar su cuenta
+Hay una gracia de 7 días, cancelable; luego se borra todo lo suyo
+E11
+El sistema notifica por email
+El dueño se entera de que su secreto fue leído, expiró o hubo actividad de seguridad
+3. Arquitectura y decisiones de stack
+Burnbox es un monolito modular con Spring Modulith sobre Java 25 y Spring Boot 4, con PostgreSQL como único estado y render en servidor con Thymeleaf y htmx. Los módulos se hablan por eventos de dominio, de modo que quien emite no conoce a quien consume.
+Los módulos de negocio publican eventos y solo audit y notification los consumen; PostgreSQL es el único estado.
+Módulos
+Módulo
+Responsabilidad
+Depende de
+Emite eventos
+platform
+Clock, contexto de request con Scoped Values, configuración, errores, headers base
+ninguno
+no
+crypto
+Tokens, envelope AES-GCM, key ring, KeyProvider
+platform
+sí
+secret
+Ciclo de vida del secreto, consumo atómico, UI de crear y revelar
+crypto, ratelimit, platform
+sí
+identity
+Usuarios, identidades vinculadas, login OIDC, política de provisión
+platform
+sí
+session
+Sesiones JDBC, metadatos, revocación, ventana de step-up
+identity
+sí
+passkey
+Credenciales WebAuthn, estados, aserciones
+identity, session
+sí
+ratelimit
+Buckets, bloqueos temporales por abuso
+platform
+sí
+audit
+Eventos de seguridad con cadena de hashes, verificador
+platform
+sí (solo AuditChainBroken)
+notification
+Entrega de emails con reintentos e idempotencia
+platform
+no
+ops
+Panel de administración, estado de jobs y claves
+audit, crypto (lectura)
+no
+audit y notification reciben eventos de los demás módulos (notification solo los que indica la sección 8, más AuditChainBroken, que emite audit) y ningún otro módulo depende de ellos. Cada módulo se organiza en dominio puro (records, sealed interfaces, sin Spring), puertos y adaptadores, y esa regla se verifica con ApplicationModules.verify() y ArchUnit en cada build.
+Decisiones de stack
+Tema
+Elección
+Motivo
+Alternativa descartada
+Lenguaje
+Java 25 (LTS)
+Scoped Values, records, sealed, pattern matching, virtual threads
+Java 21
+Framework
+Spring Boot 4.0.x con starters modulares (por ejemplo spring-boot-starter-webmvc)
+Baseline actual con Spring Framework 7
+Boot 3.5
+Seguridad
+Spring Security 7 con DSL de lambdas y configuración partida en beans Customizer<HttpSecurity>
+Lambdas obligatorias; una configuración por tema
+Un único SecurityFilterChain gigante
+Estructura
+Spring Modulith
+Fronteras verificables y registro durable de eventos
+Multi-módulo Maven sin verificación
+Persistencia
+Spring Data JDBC más JdbcClient
+SQL explícito para consumo atómico y locks; modelo chico
+JPA con Hibernate 7
+Migraciones
+Flyway
+Esquema versionado y repetible
+Liquibase
+Sesión
+Spring Session JDBC
+Sesiones revocables sin Redis
+Sesión en memoria
+Vistas
+Thymeleaf más htmx; Tailwind compilado con el CLI standalone en el build
+SSR puro; sin Node en runtime; CSP estricta
+SPA con React
+Rate limiting
+Bucket4j con almacenamiento JDBC
+Multi-instancia sin infraestructura nueva
+Redis
+Jobs
+@Scheduled con ShedLock
+Simple y suficiente
+JobRunr, Spring Batch
+KDF de passphrase
+Argon2id con BouncyCastle (Argon2BytesGenerator)
+PasswordEncoder devuelve un hash codificado, no una clave derivable
+PBKDF2
+Tests
+JUnit 5, AssertJ, Testcontainers, mock-oauth2-server, Playwright for Java
+Realismo con aislamiento
+H2
+Entorno local
+Docker Compose con PostgreSQL y Mailpit
+Un comando levanta todo
+Servicios sueltos
+Hibernate 7 viene en el stack de Boot 4 pero no se usa: evitar JPA es una decisión deliberada para controlar el SQL de las operaciones críticas.
+4. Modelo de dominio y datos
+El esquema propio tiene 12 tablas más las de Spring Session, ShedLock, Bucket4j y el registro de eventos de Modulith; ninguna guarda secretos en claro y la auditoría no contiene PII. Los ids de entidad son UUID; key_version usa su número de versión como clave y security_event, que usa un bigserial por la cadena de hashes.
+Tablas propias
+Tabla
+Columnas principales
+Restricciones e invariantes
+app_user
+id, display_name, primary_email, primary_email_verified, status (ACTIVE, PENDING_DELETION, DISABLED), deletion_scheduled_at, locale, created_at, last_login_at
+Un usuario en PENDING_DELETION requiere deletion_scheduled_at
+linked_identity
+id, user_id, provider (GOOGLE, MICROSOFT), issuer, subject, email_at_link, email_verified_at_link, created_at, last_used_at
+UNIQUE(issuer, subject); un usuario nunca queda sin identidades
+passkey_credential
+id, user_id, credential_id (bytea), public_key (COSE), sign_count, transports, label, state (PENDING_ACTIVATION, ACTIVE, REVOKED), activates_at, created_at, last_used_at
+UNIQUE(credential_id); activates_at obligatorio si PENDING_ACTIVATION
+user_session_meta
+id (opaco, el que ve el usuario), session_id, user_id, created_at, last_seen_at, ip_prefix (/24 o /48), user_agent_summary, auth_methods, last_strong_auth_at
+El id de sesión real nunca llega a la UI
+secret
+id, owner_user_id, token_hash (SHA-256), ciphertext, nonce, wrapped_dek, key_version, passphrase_salt, passphrase_protected, max_views, views, state, expires_at, created_at, consumed_at, failed_attempts, recipient_email, label
+UNIQUE(token_hash); views <= max_views; contenido (ciphertext, wrapped_dek, salt, recipient_email) no nulo solo si state = ACTIVE
+key_version
+version, status (ACTIVE, DECRYPT_ONLY, RETIRED), kek_ref, created_at, rotated_at, retired_at
+Exactamente una fila ACTIVE
+key_rotation_progress
+id, from_version, to_version, cursor_secret_id, rewrapped_count, status, started_at, finished_at
+Una rotación en curso a la vez
+security_event
+id (bigserial), occurred_at, event_type, actor_user_id, subject_type, subject_id, request_id, ip_hash, details (jsonb), prev_hash, hash
+Append-only por trigger; UNIQUE(prev_hash) impide bifurcar la cadena; sin PII ni secretos en details
+audit_checkpoint
+id, verified_up_to_event_id, head_hash, status (OK, BROKEN), verified_at, anchored_at
+Un checkpoint nunca retrocede
+notification_delivery
+id, source_event_id, user_id, template, channel, status (PENDING, SENT, FAILED, DEAD), attempts, next_attempt_at, last_error, created_at, sent_at
+UNIQUE(source_event_id, template, user_id) da idempotencia
+abuse_block
+id, ip_prefix, reason, blocked_until, created_at
+Se purga al vencer; vida máxima de 24 h
+job_run
+id, job_name, started_at, finished_at, status, processed_count, error_count, details (jsonb)
+Alimenta el panel de operaciones y las métricas
+Máquina de estados del secreto
+Un secreto nace ACTIVE. Pasa a CONSUMED al alcanzar max_views, a EXPIRED cuando vence, a DESTROYED_BY_ABUSE tras cinco passphrases erróneas y a DELETED_BY_OWNER cuando el dueño lo borra. Todos los estados distintos de ACTIVE son terminales y vacían el contenido en la misma transacción que provoca el cambio.
+La fila terminal queda 30 días como tombstone (sin contenido) para auditoría y para mostrar el estado real al dueño. Después la borra el job de limpieza. Un secreto vencido pero todavía marcado ACTIVE (porque el job no corrió) se trata como no disponible en la lectura.
+5. Criptografía y ciclo de vida del secreto
+Cada secreto se cifra con su propia clave de datos (DEK), y esa clave se envuelve con una clave maestra versionada (KEK); leer un secreto lo consume y lo destruye en una sola transacción. Todo el código criptográfico vive en el módulo crypto, y ningún otro módulo toca javax.crypto directamente.
+Token del link
+El token son 32 bytes de SecureRandom codificados en base64url sin padding (43 caracteres). La base guarda solo el SHA-256 del token, de modo que el link no se puede recuperar ni siquiera con acceso a la base, y se muestra una única vez al crear.
+Cifrado envelope
+• DEK de 256 bits por secreto, generada al crear.
+• Contenido cifrado con AES-256-GCM, nonce aleatorio de 96 bits y tag de 128 bits.
+• AAD de cada cifrado: id del secreto, versión de clave y versión de formato, para que un ciphertext no pueda moverse a otra fila.
+• La DEK se guarda envuelta con la KEK de la versión activa.
+• El puerto KeyProvider expone wrap y unwrap por versión. El adaptador del MVP lee las KEK desde variables de entorno o un archivo montado; un adaptador de KMS sobre LocalStack queda como extensión.
+Passphrase opcional
+La passphrase (8 a 128 caracteres) pasa por Argon2id con sal de 16 bytes por secreto y produce una clave que envuelve la DEK antes de que la KEK la envuelva. No se guarda ningún hash de la passphrase: una passphrase errónea se detecta porque falla el tag de GCM. Se usa Argon2 directo y no PasswordEncoder, porque este devuelve un hash codificado y no bytes de clave.
+Protocolo de revelado
+1. GET /s/{token} muestra una página intermedia que no consume nada. Esto evita que los previews de links de chats y mails (Slack, Teams, antivirus) quemen el secreto.
+2. POST /s/{token}/reveal abre una transacción.
+3. Se verifican rate limits, modo restringido y passphrase si corresponde.
+4. Se bloquea la fila (FOR UPDATE o equivalente) y se comprueba que sigue ACTIVE, no vencida y con views menor que max_views.
+5. Se descifra, se incrementa views y, si llegó al máximo, se vacía el contenido, todo en la misma transacción.
+6. Se emiten los eventos (SecretRevealed y, si corresponde, SecretConsumed) y se responde con Cache-Control: no-store.
+Los tres primeros controles pueden terminar la operación sin consumir nada; solo el cuarto paso cambia el estado del secreto.
+La garantía exigida es exactamente-una-vez bajo concurrencia: con N pedidos simultáneos sobre un secreto de una lectura, uno recibe el contenido y los demás reciben no disponible. El mecanismo concreto (lock de fila o sentencia atómica) se decide al implementar y se verifica con un test de concurrencia. No se usa Post/Redirect/Get porque el contenido no puede guardarse para una segunda carga; la respuesta se renderiza directamente desde el POST.
+Resultados del dominio
+La operación devuelve una interfaz sellada, y el controlador la resuelve con un switch exhaustivo. Agregar un caso nuevo rompe la compilación hasta que se maneje.
+Resultado
+Cuándo
+Qué ve el visitante
+Revealed
+Todo correcto
+El contenido y cuántas lecturas quedan
+PassphraseRequired
+Falta la passphrase
+Formulario de passphrase
+WrongPassphrase
+Passphrase errónea
+El formulario con los intentos restantes
+SelfDestructed
+Quinto error
+Mensaje genérico de no disponible
+RecipientLoginRequired
+Modo restringido sin sesión
+Botones de login
+RecipientMismatch
+Sesión con otro email
+Mensaje genérico de no disponible
+NotAvailable
+Inexistente, vencido, consumido o destruido
+Mensaje genérico, mismo código HTTP y misma forma que cualquier otro caso
+RateLimited
+Excede un bucket
+429 con Retry-After
+Destrucción y borrado real
+Vaciar columnas no garantiza el borrado físico: quedan copias en WAL, backups y páginas sin reciclar. Lo que da un borrado efectivo es la rotación de claves: cuando una versión de KEK se retira y se descarta, todo residuo cifrado con ella queda ilegible. Por eso la política exige rotar la KEK de forma periódica y retirar cada versión vieja una vez que pasó el TTL máximo (sección 8).
+Visibilidad para el dueño
+El dueño ve estado, lecturas, vencimiento y los eventos del secreto. No ve el contenido ni el token, y no hay forma de recuperarlos.
+6. Autenticación e identidad
+La app no tiene passwords propios: el usuario entra con Google o Microsoft, la identidad se define por emisor y sujeto (nunca por email) y los factores fuertes los aportan los passkeys. Cuatro piezas lo sostienen: login OIDC, política de provisión y vinculación, sesiones gestionables y step-up.
+Login OIDC
+• Dos registros de cliente, google y microsoft, con authorization code más PKCE y los scopes openid profile email. El redirect URI es {baseUrl}/login/oauth2/code/{registrationId}. state y nonce los valida Spring Security.
+• Google es OIDC estándar con descubrimiento por issuer.
+• Microsoft (Entra ID) con el endpoint common acepta cuentas personales y de trabajo, pero el issuer del id_token incluye el tenant del usuario y la validación por defecto contra el metadato de common falla. La solución es un JwtDecoderFactory<ClientRegistration> propio cuyo validador de issuer exige el patrón https://login.microsoftonline.com/{tid}/v2.0 con el tid tomado del propio token. Se prueba con tokens de varios tenants, incluido el de cuentas personales.
+• La identidad es el par (issuer, sub). En Microsoft el issuer ya contiene el tenant, así que el par es único por tenant.
+• Los claims name y email son solo datos de presentación. Nunca se usan para decidir quién es el usuario.
+• Después del login solo se redirige a rutas internas relativas de una lista permitida (sin open redirect).
+• El logout es POST /logout con CSRF e invalida la sesión local; no cierra la sesión en el proveedor.
+Política de provisión (qué pasa al iniciar sesión)
+El email de Google viene con email_verified; el de Microsoft no se puede dar por verificado, y confiar en él es la vulnerabilidad conocida como nOAuth. Por eso la política es explícita:
+1. Si (issuer, sub) ya existe, se entra a ese usuario. Un usuario DISABLED es rechazado; uno en PENDING_DELETION entra y ve la opción de cancelar el borrado.
+2. Si no existe y su email verificado coincide con el de un usuario existente, no se crea ni se fusiona nada. Se muestra una página que indica entrar con el proveedor original y vincular desde Seguridad.
+3. Si no existe y no hay colisión, se crea el usuario y su primera identidad.
+Un email sin verificar nunca cuenta para la colisión ni recibe notificaciones. Esto evita tanto la toma de cuenta como el bloqueo previo de un email ajeno.
+Vinculación y desvinculación
+• Solo se vincula desde una sesión autenticada y con step-up, iniciando un flujo OIDC marcado como link.
+• Si el (issuer, sub) ya pertenece a otro usuario, se rechaza y se emite un evento.
+• Desvincular exige step-up y no se permite quitar la última identidad.
+Sesiones
+• Spring Session JDBC. Cookie HttpOnly, Secure fuera de desarrollo, SameSite=Lax (con Strict se rompería el regreso del proveedor) y prefijo __Host- en producción.
+• Fijación de sesión: se migra el id al autenticar.
+• Vencimiento por inactividad de 30 minutos y absoluto de 12 horas, este último aplicado por un filtro que compara la hora de creación.
+• Cada sesión tiene una fila en user_session_meta con IP truncada, resumen del user agent, métodos de autenticación usados y hora de la última autenticación fuerte.
+• La UI muestra el id opaco de la fila de metadatos, nunca el id de sesión real. Revocar borra la sesión y su fila, y el próximo request de esa sesión se trata como anónimo.
+• Un usuario solo puede revocar sus propias sesiones; revocar todas las demás exige step-up.
+Passkeys (WebAuthn)
+El passkey es segundo factor y credencial de step-up; en el MVP no es el login principal.
+• Parámetros: RP ID igual al dominio (localhost en desarrollo), lista de orígenes permitidos, verificación de usuario requerida y attestation none. Se guardan credential id, clave pública, contador, transportes y etiqueta.
+• Si el usuario no tiene ningún passkey activo, el primero se registra en estado PENDING_ACTIVATION y se activa a las 24 horas, con aviso por email si hay email verificado y posibilidad de cancelarlo desde otra sesión. Esto frena a un atacante que robó una sesión y quiere registrar su propio passkey.
+• Si ya existe uno activo, agregar otro exige una aserción con el activo y queda activo al instante.
+• Quitar el último passkey exige una aserción con él.
+• Si el contador retrocede (y no es el caso 0 constante de los passkeys sincronizados), se marca la credencial como sospechosa y se emite un evento.
+• La verificación WebAuthn usa el soporte nativo de Spring Security; hay que confirmar en la documentación de la versión exacta qué librería exige (webauthn4j).
+Step-up para acciones sensibles
+Acciones sensibles: vincular o desvincular identidades, agregar o quitar passkeys, revocar todas las otras sesiones, ver el historial completo de seguridad, borrar la cuenta, borrar todos los secretos y todo el panel de administración.
+• Se exige un factor fuerte con antigüedad menor a 10 minutos.
+• Si el usuario tiene un passkey activo, el factor fuerte es una aserción. Si no, es una reautenticación con el proveedor (prompt=login más max_age).
+• Los claims acr y amr del proveedor no se usan para decidir; solo cuenta lo que la app verificó.
+• Se apoya en el soporte de flujo MFA de Spring Security 7; la API exacta se confirma contra la versión usada al implementar.
+Roles
+Hay USER y ADMIN. ADMIN sale de una lista de identidades (issuer, sub) en configuración y nunca de claims del token.
+7. Seguridad web transversal y modelo de amenazas
+Las protecciones transversales se configuran una vez, en beans Customizer<HttpSecurity> separados por tema, y una matriz de tests por ruta las verifica. Cada fila de la tabla de amenazas debe tener al menos un test que falle si la mitigación se rompe.
+Headers
+Header
+Valor propuesto
+Alcance
+Content-Security-Policy
+default-src 'self'; script-src 'self' 'nonce-<por request>'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+Todas
+Strict-Transport-Security
+max-age largo con includeSubDomains
+Perfil de producción
+X-Content-Type-Options
+nosniff
+Todas
+Referrer-Policy
+no-referrer
+Todas
+Permissions-Policy
+Deniega cámara, micrófono y geolocalización; permite publickey-credentials-get y publickey-credentials-create solo a self
+Todas
+Cross-Origin-Opener-Policy y Cross-Origin-Resource-Policy
+same-origin
+Todas
+Cache-Control
+no-store
+/s/**, /app/**, /admin/**
+X-Robots-Tag
+noindex, nofollow
+/s/**
+htmx inyecta una hoja de estilos propia; para mantener una CSP estricta hay que desactivar los estilos de indicador (includeIndicatorStyles) y entregar el script con nonce.
+CSRF
+Está activo en todo POST. Con htmx el token viaja en un header configurado globalmente. Para el POST anónimo de revelado no hay sesión, así que se usa un token por doble envío (cookie con alcance /s/ y SameSite=Strict más campo oculto); la decisión final está en la sección 14.
+Rate limiting
+Los buckets son de Bucket4j sobre PostgreSQL. Todas las respuestas por exceso son 429 con Retry-After y no revelan qué bucket saltó. Los valores están en la sección 13.
+Bucket
+Clave
+Protege contra
+reveal-ip
+Prefijo de IP
+Escaneo de tokens
+reveal-token
+Hash del token
+Fuerza bruta sobre un link
+create-user
+Usuario
+Abuso de almacenamiento
+login-start-ip
+Prefijo de IP
+Inundación de flujos OIDC
+passkey-user
+Usuario
+Fuerza bruta de aserciones
+La IP del cliente solo se toma de los headers de proxy cuando el request viene de un proxy configurado como confiable. Las IP se guardan truncadas (sesiones y bloqueos) o como HMAC con sal rotativa (auditoría).
+Entrada, salida y errores
+• La salida se escapa siempre con th:text; th:utext está prohibido por regla de arquitectura. El secreto se renderiza dentro de <pre> y se copia con textContent.
+• Los tamaños se limitan en el servidor (formulario máximo de 70 KiB, secreto de 64 KiB, etiqueta de 80 caracteres).
+• Hay una sola página de error y no se exponen trazas ni mensajes internos.
+• Nunca se registran tokens, contenido, passphrases, ciphertext ni los headers Cookie y Authorization. De un token solo se loguean los primeros 8 caracteres de su hash. Un test canario falla el build si un valor secreto aparece en los logs.
+Cadena de suministro y análisis
+Dependabot, escaneo de dependencias (OWASP Dependency-Check u OSV-Scanner), SBOM CycloneDX como artefacto, Trivy sobre la imagen, gitleaks sobre el repo y OWASP ZAP baseline contra el entorno de Compose, todo en CI.
+Modelo de amenazas
+Amenaza
+Vector
+Mitigación
+Verificación
+Previews que queman el link
+Chats y mails piden la URL con GET
+GET intermedio que no consume; consumo solo por POST
+Test web: GET no cambia views
+Adivinar o escanear tokens
+Fuerza bruta de URLs
+256 bits de entropía, rate limits por IP y por token, bloqueo por abuso
+Test de buckets; test de longitud y entropía del generador
+Enumeración de estados
+Distinguir inexistente de vencido o consumido
+Respuesta, código y forma idénticos
+Test de igualdad de respuestas para los cuatro casos
+Doble lectura concurrente
+Requests simultáneos
+Lock de fila y transacción única
+Test de concurrencia: exactamente un éxito
+Fuga por base de datos
+Dump o backup
+Ciphertext y DEK envuelta; KEK fuera de la base; rotación y retiro
+Test de que ninguna columna contiene texto en claro
+Fuga por logs
+Logging accidental
+Reglas de logging y test canario
+Test canario en CI
+XSS
+Contenido de secreto o etiqueta
+Escape contextual, CSP con nonce, textContent
+Test con payloads; ZAP
+CSRF
+Formularios de terceros
+Token CSRF, SameSite, CORS cerrado
+Matriz de tests por ruta
+Fijación y robo de sesión
+Id previo al login, cookie robada
+Migración de id, cookie endurecida, revocación visible
+Test de cambio de id al autenticar
+Toma de cuenta por email (nOAuth)
+Cuenta Microsoft con email ajeno
+Identidad por (issuer, sub), sin fusión por email, email no verificado ignorado
+Tests de la tabla de provisión
+Open redirect tras login
+Parámetro de retorno manipulado
+Solo rutas internas permitidas
+Test con URLs externas
+Registro de passkey por un atacante con sesión robada
+Sesión comprometida
+Período de espera de 24 h, aviso y cancelación
+Test del estado PENDING_ACTIVATION
+Manipulación de la auditoría
+Edición de filas
+Append-only, cadena de hashes, verificador, anclaje
+Test del trigger y del verificador
+Clickjacking
+iframe de terceros
+frame-ancestors 'none'
+Test de headers
+Fuga del token por Referer
+Recursos externos en la página
+Referrer-Policy: no-referrer, sin recursos externos
+Test de headers; ZAP
+Abuso de Argon2 como DoS
+Muchas passphrases simultáneas
+Rate limits previos y límite de concurrencia del KDF
+Test de límite
+8. Trabajo de fondo: jobs, eventos y notificaciones
+Siete jobs y un flujo de eventos mantienen el sistema en regla sin intervención, y ninguno es necesario para la corrección de la lectura ni de la expiración. Los jobs usan @Scheduled con ShedLock (para que una sola instancia corra cada uno), se ejecutan sobre virtual threads y comparten las mismas reglas.
+Reglas comunes de los jobs
+• Idempotentes: correrlos dos veces seguidas no cambia el resultado.
+• Por lotes de 500 filas con SKIP LOCKED para convivir con lecturas concurrentes.
+• Cada ejecución escribe una fila en job_run y publica métricas.
+• Todo el tiempo sale del Clock inyectado.
+• Cada job expone un método run() invocable desde los tests; el scheduler está desactivado en el perfil de test.
+• Un error en un lote se cuenta, se registra sin datos sensibles y no detiene los siguientes lotes ni la próxima ejecución.
+Inventario de jobs
+Job
+Frecuencia
+Qué hace
+Detalles de diseño
+expired-secret-purge
+Cada minuto
+Pasa a EXPIRED los secretos ACTIVE vencidos y vacía su contenido
+Emite SecretExpired; la lectura ya los trata como no disponibles aunque el job no corra
+tombstone-cleanup
+Diario
+Borra filas terminales con más de 30 días
+Nunca toca filas ACTIVE
+audit-chain-verifier
+Cada hora (incremental) y semanal (completa)
+Recorre la cadena desde el último checkpoint, recalcula hashes y registra el resultado
+Si detecta ruptura: checkpoint BROKEN, métrica audit_chain_broken, evento AuditChainBroken y aviso al admin; además ancla el hash de cabeza una vez por día fuera de la base
+key-rotation
+Política cada 30 días y disparo manual del admin
+Crea una versión de KEK ACTIVE, deja la anterior en DECRYPT_ONLY y re-envuelve las DEK en lotes
+Con cursor persistente (reanudable); retira la versión vieja cuando no quedan secretos que la usen y pasó el TTL máximo más margen
+abuse-detector
+Cada minuto
+Detecta prefijos de IP con muchos fallos de revelado sobre tokens distintos y los bloquea temporalmente
+Escribe abuse_block con vencimiento de 1 hora y emite AbuseIpFlagged
+session-cleanup
+Cada hora
+Borra filas de user_session_meta sin sesión asociada y sesiones vencidas
+Complementa la limpieza propia de Spring Session
+account-deletion
+Cada hora
+Borra cuentas en PENDING_DELETION cuya fecha de gracia pasó
+Borra secretos, identidades, passkeys, sesiones, metadatos y entregas; emite AccountDeleted antes; la auditoría conserva solo ids opacos
+La rotación es lo que da el borrado efectivo de residuos (sección 5): la política es rotar la KEK de forma periódica y retirar cada versión vieja una vez que pasó el TTL máximo desde que dejó de ser la activa. Con TTL máximo de 7 días, re-envolver las DEK es opcional (podría bastar con esperar), pero se implementa porque es parte de lo que se quiere demostrar.
+Eventos de dominio
+Cada módulo publica eventos con el registro durable de Spring Modulith; si un consumidor falla, el evento se republica. audit registra todos y notification solo los que se indican.
+Evento
+Lo emite
+Notifica por email
+SecretCreated, SecretDeletedByOwner
+secret
+No
+SecretRevealed
+secret
+Sí, al dueño
+SecretConsumed
+secret
+No (cubierto por SecretRevealed)
+SecretExpired
+secret
+Sí, al dueño, solo si nunca fue leído
+PassphraseFailed, SecretDestroyedByAbuse
+secret
+Destrucción por abuso: sí, al dueño
+UserRegistered, LoginRejected
+identity
+No
+UserLoggedIn
+identity
+Sí, si es un dispositivo o prefijo de IP nuevo
+IdentityLinked, IdentityUnlinked
+identity
+Sí
+SessionRevoked
+session
+No
+PasskeyEnrolled, PasskeyActivated, PasskeyRevoked, PasskeyCounterAnomaly
+passkey
+Sí
+StepUpSucceeded, StepUpFailed
+session
+No
+AccountDeletionRequested, AccountDeletionCancelled
+identity
+Sí
+AccountDeleted
+identity
+No
+KeyRotationStarted, KeyRotationCompleted
+crypto
+Al admin
+AuditChainBroken
+audit
+Al admin
+AbuseIpFlagged
+ratelimit
+No
+Notificaciones por email
+• Entrega con al menos una vez desde el registro de eventos más idempotencia por la clave única de notification_delivery, lo que da efectivamente una vez.
+• Reintentos con backoff de 1 minuto, 5 minutos, 30 minutos, 2 horas y 12 horas; después queda en DEAD y se cuenta en una métrica.
+• Solo se envía a emails verificados.
+• El cuerpo nunca contiene el token ni el contenido, ni la etiqueta que puso el usuario; incluye el id corto del secreto y la fecha.
+• Plantillas Thymeleaf con i18n en español e inglés. En desarrollo se envía a Mailpit.
+9. Interfaz SSR: pantallas, rutas y UX
+La interfaz es una app renderizada en servidor con dirección visual de herramienta de seguridad (sobria, con buen contraste y modo claro y oscuro), y todo flujo crítico funciona sin JavaScript salvo copiar al portapapeles y las ceremonias de passkey. htmx se usa solo para actualizar fragmentos: listas de sesiones, passkeys y secretos, y confirmaciones.
+Principios de UI
+• Thymeleaf con fragmentos reutilizables: layout, mensajes flash, estados vacíos, confirmaciones con <dialog> nativo.
+• Tailwind compilado en el build con el CLI standalone; recursos propios con hash de contenido en el nombre y cache inmutable. Sin CDN ni recursos externos.
+• Español por defecto e inglés disponible desde el inicio, con MessageSource; la elección se guarda en app_user.locale o en la cabecera Accept-Language para anónimos.
+• Accesibilidad nivel AA: foco visible, labels en todos los campos, respeta prefers-color-scheme y prefers-reduced-motion.
+• Un solo patrón de error: mensaje claro, sin detalles técnicos y con código de referencia (el request_id).
+Reglas de UX de los secretos
+• Tras crear, el link aparece en una pantalla única con el aviso de que no se vuelve a mostrar, un botón de copiar y un enlace al detalle.
+• La pantalla intermedia del link explica qué va a pasar (se revela una vez y se destruye) antes del botón de revelar.
+• El contenido se muestra en un bloque monoespaciado con botones de copiar y de ocultar. Nada se copia solo.
+• Para anónimos, todos los fallos de disponibilidad usan el mismo mensaje.
+• El dueño ve en su detalle el estado real, las lecturas y la línea de tiempo de eventos del secreto.
+Rutas
+Ruta
+Método
+Acceso
+Qué hace
+/
+GET
+Público
+Presentación y botones de login
+/login
+GET
+Público
+Elección de proveedor y mensajes de error de login
+/oauth2/authorization/{id}
+GET
+Público
+Inicio del flujo OIDC (ruta estándar de Spring Security)
+/login/oauth2/code/{id}
+GET
+Público
+Callback OIDC
+/logout
+POST
+Usuario
+Cierra la sesión
+/s/{token}
+GET
+Público
+Página intermedia, no consume
+/s/{token}/reveal
+POST
+Público
+Revela y consume
+/app
+GET
+Usuario
+Lista de mis secretos y su estado
+/app/new
+GET, POST
+Usuario
+Formulario y creación
+/app/secrets/{id}
+GET
+Usuario (dueño)
+Detalle y eventos del secreto
+/app/secrets/{id}/delete
+POST
+Usuario (dueño)
+Borra el secreto
+/app/security
+GET
+Usuario
+Identidades, passkeys, sesiones y mis eventos
+/app/security/identities/link/{provider}
+POST
+Usuario con step-up
+Inicia la vinculación
+/app/security/identities/{id}/unlink
+POST
+Usuario con step-up
+Desvincula
+/app/security/passkeys/...
+GET, POST
+Usuario (algunas con step-up)
+Registro, renombrado y baja; aserciones
+/app/security/sessions/{id}/revoke
+POST
+Usuario
+Revoca una sesión propia
+/app/security/sessions/revoke-others
+POST
+Usuario con step-up
+Revoca todas las demás
+/app/account/delete y /app/account/delete/cancel
+POST
+Usuario con step-up
+Solicita o cancela el borrado de la cuenta
+/admin/ops
+GET
+Admin con step-up
+Panel de jobs, claves, cadena de auditoría y abuso
+/admin/keys/rotate
+POST
+Admin con step-up
+Dispara la rotación de claves
+/privacy, /terms, /.well-known/security.txt, /robots.txt
+GET
+Público
+Páginas estáticas y política de divulgación
+El puerto de gestión (Actuator) corre aparte y no forma parte de estas rutas.
+10. Observabilidad y operación
+La app expone métricas de negocio y de seguridad además de las técnicas, registra en JSON sin datos sensibles y se despliega como una imagen única detrás de un proxy con TLS. El objetivo es que el panel de operaciones y los dashboards muestren el estado de los jobs y de la criptografía sin abrir la base.
+Métricas (Micrometer)
+Métrica
+Qué mide
+burnbox.secrets.created, .revealed, .expired, .destroyed
+Volumen y resultado del ciclo de vida, etiquetado por motivo
+burnbox.reveal.outcome
+Resultados de revelado por tipo (la interfaz sellada de la sección 5)
+burnbox.login.outcome
+Logins por proveedor y resultado (éxito, rechazo, colisión de email)
+burnbox.ratelimit.rejected
+Rechazos por bucket
+burnbox.job.duration, .processed, .errors
+Ejecución de cada job, por nombre
+burnbox.keyring.active_version, .secrets_by_version
+Estado de las claves y de la rotación
+burnbox.audit.chain_broken
+0 o 1, sale del verificador
+burnbox.notification.pending, .dead
+Cola de emails
+Logs y trazas
+• Logs estructurados en JSON con timestamp, level, request_id, user_ref (id opaco) y event.
+• El request_id y el actor viajan en un Scoped Value ligado al request y se leen desde el dominio y la auditoría sin parámetros extra ni ThreadLocal.
+• Trazas con OpenTelemetry a un collector local; en el perfil observability de Compose, Prometheus y Grafana con el dashboard versionado en el repo.
+Salud y gestión
+Actuator corre en un puerto distinto, expuesto solo a la red interna y autenticado. Los health indicators cubren la base, el KeyProvider (que pueda envolver y desenvolver) y el servidor SMTP.
+Configuración y secretos
+Variable
+Contenido
+BURNBOX_BASE_URL
+URL pública, base de los redirect URI
+GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+Credenciales OAuth de Google
+MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET
+Credenciales de la app en Entra ID
+BURNBOX_KEK_V<n>
+KEK de 256 bits en base64, una por versión
+BURNBOX_IP_HASH_SALT
+Sal base del HMAC de IP en auditoría (la rotación diaria se deriva de ella)
+BURNBOX_ADMIN_IDENTITIES
+Lista de pares issuer y sub con rol ADMIN
+SPRING_DATASOURCE_*, SPRING_MAIL_*
+Base y correo
+Perfiles: dev, test, prod y demo. El perfil de demostración acota el TTL máximo a 1 hora y reduce la cuota de creación para exponer una instancia pública sin riesgo de abuso.
+Empaquetado y despliegue
+• Dockerfile multi-stage con JRE de Java 25, usuario sin privilegios, sistema de archivos de solo lectura y capas del jar separadas.
+• Opcional y a medir: el flag de cabeceras de objeto compactas del JDK 25 para bajar memoria.
+• Docker Compose para desarrollo y para un VPS, con un proxy (por ejemplo Caddy) que termina TLS y define los proxies confiables.
+• Las copias de seguridad de la base se guardan separadas de las KEK; sin las KEK, un backup no revela secretos.
+11. Estrategia de testing y fronteras de verificación
+Cada comportamiento se verifica con el test de menor alcance que lo pueda demostrar: la frontera de un test llega hasta donde el comportamiento deja de depender del código propio. Los tests de mayor alcance son pocos y se reservan para lo que solo se ve integrado.
+Capas
+Capa
+Herramientas
+Qué prueba
+Colaboradores reales
+Colaboradores simulados
+L0 Dominio puro
+JUnit 5, AssertJ, opcional jqwik
+Cripto (ida y vuelta, tampering, cambio de AAD), generación de token, máquina de estados, reglas de política, resultados sellados
+Ninguno
+Reloj fijo (MutableClock)
+L1 Persistencia
+Testcontainers con PostgreSQL
+Restricciones, consumo atómico bajo concurrencia, SKIP LOCKED, trigger append-only, UNIQUE(prev_hash)
+Base real
+Nada más
+L2 Web por rebanada
+@WebMvcTest con Spring Security Test
+Matriz ruta por rol (anónimo, usuario, admin) con estado esperado, headers, CSRF, forma uniforme de errores
+Cadena de filtros real
+Servicios del dominio
+L3 Módulo
+@ApplicationModuleTest
+Eventos emitidos y consumidos por módulo
+El módulo bajo prueba
+Los demás módulos
+L4 OIDC
+mock-oauth2-server y oidcLogin()
+Tabla de provisión, colisión de email, validador de issuer de Microsoft con varios tenants, vinculación
+Spring Security real
+El proveedor
+L5 Extremo a extremo
+Playwright for Java con Chromium y su autenticador virtual
+Pocos flujos: crear y revelar, login, passkey con step-up, revocar sesión, borrar cuenta
+Todo menos los proveedores OIDC
+Proveedor OIDC y correo (Mailpit)
+L6 No funcional
+ZAP baseline, ArchUnit, ApplicationModules.verify(), PIT, test canario de logs
+Superficie web, fronteras de módulos, calidad de los tests de cripto y política, fuga de secretos en logs
+Entorno de Compose
+Nada
+Reglas
+• Sin Thread.sleep: el tiempo se controla con el reloj inyectado y los jobs se invocan directamente con run().
+• Los tests no dependen del orden ni comparten datos; cada uno crea lo suyo con builders.
+• El test de concurrencia lanza N virtual threads sobre un secreto de una lectura y exige exactamente un éxito.
+• La tabla de provisión (sección 6) y la matriz ruta por rol son tests parametrizados: agregar una fila agrega un caso.
+• Los tests de aserción de passkeys usan el autenticador virtual del navegador y no dependen de hardware.
+Puertas de CI
+• Compilación y todos los tests (L0 a L5).
+• Cobertura por paquete con umbral en crypto, secret e identity (valor a fijar en el Gate).
+• Mutación (PIT) sobre crypto y las reglas de política, con umbral a fijar.
+• ApplicationModules.verify() y reglas ArchUnit.
+• ZAP baseline, escaneo de dependencias y de imagen, gitleaks y SBOM como artefacto.
+12. Capacidades en orden de dependencia
+El MVP se descompone en 25 capacidades por comportamiento observable y no por capa técnica, ordenadas para que cada una pueda construirse y probarse sobre las anteriores. Son insumo para formar contratos: no son contratos, y la granularidad final es tuya (abajo se marcan las que probablemente convenga partir).
+Id
+Capacidad
+Comportamientos clave
+Depende de
+Frontera de test sugerida
+C-00
+Esqueleto
+Proyecto Boot 4 y Java 25, Modulith, base de Flyway, Compose con PostgreSQL y Mailpit, CI, Clock, contexto con Scoped Values, página de error única, headers base
+ninguna
+L2 de headers; ApplicationModules.verify()
+C-01
+Núcleo criptográfico
+Token de 32 bytes con hash SHA-256, envelope AES-GCM con AAD, KeyProvider local, key ring con una versión ACTIVE
+C-00
+L0 con vectores de prueba y tampering
+C-02
+Eventos y auditoría mínima
+Puerto de publicación de eventos de seguridad, contexto de request, registro simple sin cadena de hashes
+C-00
+L0 y L3
+C-03
+Ciclo de vida del secreto
+Crear, estados y transiciones, expiración al leer, consumo atómico, vaciado de contenido
+C-01, C-02
+L0 de estados; L1 de concurrencia y restricciones
+C-04
+Revelado anónimo SSR
+GET intermedio sin consumo, POST de revelado, resultados sellados mapeados a vistas, respuesta uniforme de no disponible, headers no-store y noindex
+C-03
+L2; L0 del mapeo
+C-05
+Login con Google y sesión
+OIDC con PKCE, política de provisión, logout, Spring Session JDBC, cookie y vencimientos
+C-00, C-02
+L4 y L2
+C-06
+Login con Microsoft
+Registro en Entra ID, validador de issuer multi-tenant, pruebas con varios tenants
+C-05
+L0 del validador; L4
+C-07
+Crear secreto y panel del dueño
+Formulario con validaciones, link mostrado una vez, listado, detalle, borrado
+C-03, C-05
+L2; L5 (primer flujo completo)
+C-08
+Rate limiting
+Buckets de Bucket4j sobre JDBC en revelado, creación y login; 429 uniforme
+C-04, C-07
+L1 y L2
+C-09
+Passphrase y autodestrucción
+Argon2id, doble envoltura, cinco intentos, límite de concurrencia del KDF
+C-01, C-04, C-08
+L0 y L1
+C-10
+Sesiones gestionables
+Metadatos, listado con id opaco, revocación individual
+C-05
+L1 y L2
+C-11
+Vinculación de identidades
+Flujo de vinculación, rechazo si pertenece a otro usuario, desvincular sin quitar la última
+C-05, C-06
+L4
+C-12
+Passkeys
+Registro, estados, espera de 24 h, aserción, contador, baja
+C-05
+L0 de estados; L5 con autenticador virtual
+C-13
+Step-up
+Política de acciones sensibles, ventana de 10 minutos, reautenticación o aserción, aplicada a C-10, C-11 y C-12
+C-10, C-11, C-12
+L2 de la matriz; L5
+C-14
+Destinatario restringido
+Revelado con login previo, email verificado, mensaje genérico ante desajuste
+C-04, C-05, C-06
+L4 y L2
+C-15
+Cadena de auditoría
+Hash encadenado, trigger append-only, UNIQUE(prev_hash), vista de mis eventos
+C-02
+L1
+C-16
+Notificaciones por email
+Registro de eventos de Modulith, notification_delivery, reintentos, plantillas, Mailpit
+C-02, C-07, C-10
+L3 y L1
+C-17
+Jobs de purga
+job_run, ShedLock, expired-secret-purge, tombstone-cleanup, session-cleanup
+C-03, C-10
+L1; L0 de la lógica
+C-18
+Verificador de cadena
+Verificación incremental y completa, checkpoints, anclaje diario, alertas
+C-15, C-17
+L1
+C-19
+Rotación de claves
+Key ring completo, re-envoltura por lotes con cursor, retiro de versiones, disparo manual
+C-01, C-03, C-17
+L1 y L0
+C-20
+Detección de abuso
+abuse-detector, abuse_block, integración con rate limiting
+C-08, C-15, C-17
+L1
+C-21
+Borrado de cuenta
+Solicitud con step-up, gracia de 7 días, cancelación, job de cascada
+C-07, C-13, C-17
+L1; L5
+C-22
+Panel de operaciones
+Vista de jobs, claves, cadena y abuso; acción de rotación
+C-17, C-18, C-19, C-20
+L2; un L5 mínimo
+C-23
+Observabilidad
+Métricas, logs JSON, health indicators, perfil observability con dashboard
+C-17
+L2 de health; test canario de logs
+C-24
+Endurecimiento y entrega
+CSP final, ZAP, SBOM, escaneos, perfil demo, README con arquitectura y modelo de amenazas, security.txt
+todas
+L6
+Olas
+1. Ola A (C-00 a C-04): núcleo sin identidad; el dominio y el revelado funcionan con datos de test.
+2. Ola B (C-05 a C-08): identidad y primer flujo de punta a punta. Al terminar C-08 ya se puede demostrar el producto.
+3. Ola C (C-09 a C-14): seguridad fuerte (passphrase, sesiones, vinculación, passkeys, step-up, destinatario restringido).
+4. Ola D (C-15 a C-22): fondo, auditoría y operación.
+5. Ola E (C-23 y C-24): observabilidad y entrega.
+Candidatas a partirse en más de un contrato
+C-04 (GET, POST y mapeo a vistas), C-05 (login, provisión y sesión), C-12 (registro, aserción y estados) y C-19 (key ring, re-envoltura y retiro). Por su tamaño, C-00, C-02, C-06 y C-23 suelen caber en uno solo.
+Los puertos entre capacidades (por ejemplo la firma exacta de KeyProvider o del puerto de eventos de seguridad) no están fijados acá: conviene que los fije el primer contrato que los necesite.
+13. Parámetros por defecto
+Estos valores son el punto de partida y viven en configuración, no en el código; cualquiera puede cambiarse en el Gate si el contrato lo justifica. Los de seguridad se tomaron conservadores y los de rate limiting son orientativos.
+Parámetro
+Valor
+Dónde aplica
+Token del link
+32 bytes, 43 caracteres base64url
+Sección 5
+Tamaño máximo del secreto
+64 KiB de texto UTF-8
+Creación
+Tamaño máximo del formulario
+70 KiB
+Servidor web
+Etiqueta
+Opcional, hasta 80 caracteres
+Creación
+TTL permitidos
+1 hora, 24 horas (por defecto), 7 días
+Creación
+Lecturas máximas
+1 por defecto; de 1 a 10
+Creación
+Passphrase
+De 8 a 128 caracteres, opcional
+Creación y revelado
+Intentos de passphrase
+5 por secreto, luego destrucción
+Revelado
+Argon2id
+19 MiB de memoria, 2 iteraciones, paralelismo 1, sal de 16 bytes
+Passphrase
+Concurrencia del KDF
+Hasta 4 derivaciones simultáneas
+Passphrase
+AES-GCM
+Clave de 256 bits, nonce de 96 bits, tag de 128 bits
+Cifrado
+Rotación de KEK
+Cada 30 días
+Job key-rotation
+Retiro de una versión de KEK
+TTL máximo más 1 día, contados desde que deja de ser la activa
+Job key-rotation
+Sesión
+30 minutos de inactividad y 12 horas absolutas
+Sesiones
+Ventana de step-up
+10 minutos
+Acciones sensibles
+Espera de un primer passkey
+24 horas
+Passkeys
+Cuenta en borrado
+7 días de gracia
+Cuentas
+reveal-ip
+20 por minuto
+Rate limiting
+reveal-token
+10 por minuto
+Rate limiting
+create-user
+30 por hora
+Rate limiting
+login-start-ip
+20 por minuto
+Rate limiting
+passkey-user
+10 por minuto
+Rate limiting
+Detección de abuso
+10 o más tokens distintos con fallo desde un mismo prefijo de IP en 5 minutos
+abuse-detector
+Bloqueo por abuso
+1 hora
+abuse_block
+Purga de vencidos
+Cada minuto
+Jobs
+Retención de tombstones
+30 días
+Jobs
+Verificador de cadena
+Incremental cada hora, completo cada semana, anclaje diario
+Jobs
+Tamaño de lote
+500 filas
+Jobs
+Backoff de emails
+1 minuto, 5 minutos, 30 minutos, 2 horas, 12 horas; luego DEAD
+Notificaciones
+Retención de auditoría
+Sin purga en el MVP
+Auditoría
+Perfil demo
+TTL máximo de 1 hora y create-user de 5 por hora
+Instancia pública
+14. Decisiones abiertas para el Gate
+Quedan quince decisiones que este documento deja abiertas a propósito, cada una con la opción recomendada. Las que afectan a varias capacidades conviene resolverlas antes de que se apruebe el primer contrato que las toque.
+Id
+Decisión
+Opciones
+Recomendada y motivo
+Afecta a
+D1
+Tenant de Microsoft
+common con validador propio; organizations; consumers
+common con validador: acepta cuentas personales y de trabajo y es parte de lo que se quiere demostrar
+C-06
+D2
+Email de Microsoft sin verificar
+Solo notificaciones en la app; verificar con un claim de dominio verificado (confirmar en la documentación de Entra si existe uno como xms_edov); verificar por link mágico
+Sin email de notificación hasta poder verificarlo; el modo destinatario restringido solo acepta emails verificados
+C-14, C-16
+D3
+Dónde anclar el hash de cabeza de la auditoría
+Log más email diario al admin; archivo en almacenamiento externo; servicio externo
+Log más email diario al admin: cero infraestructura nueva y deja evidencia fuera de la base
+C-18
+D4
+Almacenamiento de rate limiting
+Bucket4j sobre JDBC; en memoria; Redis
+JDBC: funciona con varias instancias sin sumar un servicio
+C-08
+D5
+CSRF del POST anónimo de revelado
+Doble envío con cookie de alcance /s/; token firmado atado al secreto
+Doble envío con SameSite=Strict: más simple de probar
+C-04
+D6
+Motor de jobs
+@Scheduled con ShedLock; JobRunr; Spring Batch para la rotación
+@Scheduled con ShedLock y tabla de progreso propia para la rotación
+C-17, C-19
+D7
+Entrega durable de eventos
+Registro de publicación de Modulith; outbox propio
+Registro de Modulith más notification_delivery propia para la idempotencia
+C-16
+D8
+Persistencia
+Spring Data JDBC con JdbcClient; JPA con Hibernate 7
+JDBC: el SQL de consumo atómico y de lotes queda explícito
+C-03 en adelante
+D9
+KeyProvider del MVP
+Solo local; local más KMS sobre LocalStack
+Solo local en el MVP, con el puerto listo para sumar KMS
+C-01, C-19
+D10
+Parámetros de Argon2
+Mínimo de OWASP con límite de concurrencia; valores más altos
+Mínimo de OWASP más límite de concurrencia: un endpoint público no debería permitir agotar memoria
+C-09
+D11
+Fuente de tiempo
+Clock de la app como única fuente; now() de la base
+Clock de la app, pasado como parámetro a las consultas, para que los tests controlen el tiempo
+todas
+D12
+Nombre de la cookie de sesión
+__Host- con nombre propio; nombre por defecto
+__Host- en producción, nombre por defecto en dev
+C-05
+D13
+Nombre final y dominio de la demo
+A definir
+Elegir antes de registrar los redirect URI definitivos en Google y Entra
+C-24
+D14
+Passkey como login principal
+Etapa 2; incluir en el MVP
+Etapa 2: el MVP ya tiene suficiente superficie
+extensión
+D15
+Idiomas
+Español e inglés desde el inicio; solo español
+Ambos desde el inicio: cuesta poco si las cadenas nacen en MessageSource
+C-00 en adelante
+A confirmar contra la documentación de la versión exacta al implementar
+• La API concreta del flujo de MFA y de las autorizaciones por factor en Spring Security 7.
+• Qué librería exige el soporte de WebAuthn de Spring Security y cómo se configuran RP ID y orígenes.
+• Los claims opcionales de Entra ID (tid, email, verificación de dominio de email) y qué devuelve una cuenta personal frente a una de trabajo.
+• Cómo configurar los beans Customizer<HttpSecurity> para que compongan en una sola cadena de filtros.
+• La API del registro de publicación de eventos de Spring Modulith en la versión compatible con Boot 4.
+15. Prerrequisitos externos y entorno local
+Antes del primer contrato de login hay que crear a mano una app OAuth en Google y otra en Microsoft Entra ID, porque ninguna de las dos se puede generar desde el código. Lo demás se levanta con un docker compose up.
+Google
+1. Crear un proyecto en Google Cloud Console.
+2. Configurar la pantalla de consentimiento como externa. En modo de prueba solo entran los usuarios de prueba que agregues; para uso público hay que publicarla (verificá en la consola el estado actual de los requisitos para los scopes openid, email y profile).
+3. Crear credenciales de tipo cliente OAuth para aplicación web.
+4. Registrar los redirect URI de la tabla de abajo. Guardar el client id y el client secret.
+Microsoft (Entra ID)
+1. Registrar una aplicación en Microsoft Entra ID.
+2. En tipos de cuenta admitidos, elegir cuentas de cualquier directorio y cuentas personales de Microsoft (coherente con D1).
+3. Agregar una plataforma Web con los redirect URI de la tabla de abajo.
+4. Crear un client secret en Certificates & secrets. Los secretos de cliente vencen: anotá la fecha y programá su renovación.
+5. Permisos delegados openid, profile y email. Revisar los claims opcionales del token ID para email y tid (ver D2).
+Redirect URI
+Entorno
+Google
+Microsoft
+Desarrollo
+http://localhost:8080/login/oauth2/code/google
+http://localhost:8080/login/oauth2/code/microsoft
+Demo o producción
+https://<dominio>/login/oauth2/code/google
+https://<dominio>/login/oauth2/code/microsoft
+Agregar un redirect URI nuevo es manual en ambas consolas, y por eso D13 (nombre y dominio) conviene resolverla antes de publicar la demo.
+Entorno local
+• compose.yaml con PostgreSQL y Mailpit (SMTP en 1025 y UI en 8025); la app corre con el perfil dev.
+• Una KEK de desarrollo se genera con openssl rand -base64 32 y va en BURNBOX_KEK_V1.
+• .env.example documenta todas las variables de la sección 10 sin valores reales; el .env real no se versiona y gitleaks corre como pre-commit.
+• WebAuthn y las cookies Secure funcionan sobre localhost sin HTTPS.
+Estructura del repositorio
+• src/main/java/<paquete>/<módulo>/ con subpaquetes de dominio, puertos, adaptadores y web.
+• src/main/resources/db/migration/ para Flyway.
+• contracts/ para SDD-GL y CONSTITUTION.md en la raíz.
+• docs/ con architecture.md, threat-model.md y adr/ (una nota corta por cada decisión de la sección 14 cuando se resuelva).
+• compose.yaml, Dockerfile y .github/workflows/.
+Reglas candidatas para CONSTITUTION.md
+Surgen de los principios (sección 1) y de la seguridad transversal (sección 7), y son verificables de forma estática o por test.
+1. Todo el código criptográfico vive en el módulo crypto; no hay javax.crypto fuera de él.
+2. Nunca th:utext.
+3. Nunca Instant.now() ni LocalDateTime.now(); solo el Clock inyectado.
+4. No se registran tokens, contenido, passphrases, ciphertext ni los headers Cookie y Authorization.
+5. Toda ruta nueva figura en la matriz de seguridad por rol.
+6. Los módulos se comunican solo por eventos o puertos declarados, y ApplicationModules.verify() pasa.
+7. No hay JPA ni Hibernate; el acceso a datos es SQL explícito con JdbcClient o Spring Data JDBC.
+8. La identidad es siempre (issuer, sub); ninguna decisión de identidad usa el email ni los claims acr y amr.
+9. Las respuestas a anónimos son uniformes: ningún mensaje distingue inexistente, vencido o consumido.
+10. No se agrega una dependencia sin una nota ADR corta.
+11. Ningún secreto ni credencial entra al repositorio.
+12. security_event.details no contiene PII ni secretos.
+16. Extensiones fuera del MVP
+Hay ocho extensiones razonables, ordenadas de mayor a menor relación entre valor demostrativo y costo. Las tres primeras son las que más suman al portfolio sin deformar el producto.
+1. Zero-knowledge del lado del cliente. La clave viaja en el fragmento de la URL (#), que el navegador nunca envía al servidor, y el cifrado AES-GCM ocurre en el navegador con WebCrypto. El servidor solo ve ciphertext. Costos: exige JavaScript, la CSP pasa a depender de un script propio y hay que redefinir cómo conviven la passphrase y el modo restringido.
+2. Passkey como login principal para usuarios recurrentes, con los proveedores como alternativa y recuperación.
+3. KeyProvider sobre KMS (LocalStack). Segundo adaptador del puerto ya definido, con la KEK fuera del proceso de la app.
+4. API y CLI. POST /api/v1/secrets con tokens de acceso personales (guardados con hash, con alcance y vencimiento), usando el versionado de APIs de Spring Framework 7 y un cliente declarativo con @HttpServiceClient. Amplía bastante el alcance: conviene tratarlo como un proyecto aparte.
+5. Roles y organizaciones desde Entra ID. Roles de aplicación o grupos para ADMIN y organizaciones por dominio de email verificado, con aislamiento entre ellas.
+6. Webhooks firmados con HMAC para eventos como secreto leído, con protección contra SSRF en el envío.
+7. Exportación firmada del log de auditoría.
+8. Archivos adjuntos con cifrado por streaming, límites de tamaño y escaneo.
+Fuentes consultadas
+Las versiones y capacidades de Spring Boot 4, Spring Framework 7, Spring Security 7 y Java 25 salen de resultados de búsqueda consultados el 2026-11-08 (no se abrieron las páginas completas). Hay que confirmarlas contra la documentación oficial antes de implementar, en especial los puntos listados en la sección 14.
+• Spring Boot 4.0.1 Release (resumen de versiones)
+• Spring Boot 4.0.0-M2 available now (API versioning y @HttpServiceClient)
+• Spring Security 7: lambdas, MFA y modularización (velog)
+• spring boot security (resumen de Security 7)

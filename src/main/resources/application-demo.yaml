@@ -1,0 +1,5 @@
+burnbox:
+  demo:
+    enabled: true
+    max-ttl-hours: 1
+    create-rate-limit-per-hour: 5

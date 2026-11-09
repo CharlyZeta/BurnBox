@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "first_seen": "2026-11-08T22:13:02.495Z",
+  "last_updated": "2026-11-09T12:54:31.209Z",
+  "sessions": 0,
+  "session_log": [],
+  "clients": {},
+  "sources": {
+    "mcp": 0,
+    "cli": 95
+  },
+  "by_type": {
+    "feature": 80,
+    "fix": 0,
+    "unknown": 15
+  },
+  "cli_commands": {
+    "status": 9,
+    "new": 5,
+    "graph": 4,
+    "validate": 28,
+    "next": 2,
+    "approve": 1,
+    "loop": 45,
+    "report": 1
+  },
+  "tools": {
+    "sdd_get_status": 15,
+    "sdd_create_contract": 5,
+    "sdd_validate_gate": 29,
+    "sdd_step_loop": 45,
+    "sdd_get_metrics": 1
+  },
+  "totals": {
+    "calls": 95,
+    "errors": 0
+  }
+}

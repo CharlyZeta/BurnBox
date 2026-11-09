@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "layers": [
+    "functional",
+    "static",
+    "security",
+    "arch"
+  ],
+  "suite": null,
+  "suite_policy": "on_resolve",
+  "timeout_seconds": 300
+}
