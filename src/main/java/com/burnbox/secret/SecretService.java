@@ -103,7 +103,7 @@ public class SecretService {
         applicationEventPublisher.publishEvent(new SecretCreatedEvent(secretId, tokenHash, expiresAt, cmd.maxViews()));
         securityEventPublisher.publish("SECRET_CREATED", "secret", secretId.toString(), Map.of(
                 "max_views", cmd.maxViews(),
-                "passphrase_protected", hasPassphrase
+                "protected", hasPassphrase
         ));
 
         return new CreateSecretResult(secretId, rawToken, tokenHash, expiresAt);

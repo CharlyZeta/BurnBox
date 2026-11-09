@@ -4,6 +4,7 @@ import com.burnbox.crypto.CryptoTokenService;
 import com.burnbox.crypto.LocalKeyProvider;
 import com.burnbox.crypto.PassphraseKeyDeriver;
 import com.burnbox.crypto.SecretEnvelopeService;
+import com.burnbox.platform.DefaultSecurityEventPublisher;
 import com.burnbox.platform.SecurityEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -239,5 +240,35 @@ class PassphraseProtectionTest {
         verify(applicationEventPublisher).publishEvent(captor.capture());
         assertEquals(destroyed.id(), captor.getValue().secretId());
         assertEquals(BASE_TIME, captor.getValue().destroyedAt());
+    }
+
+    @Test
+    @DisplayName("FEAT-0008: Creación de secreto con contraseña y DefaultSecurityEventPublisher real no falla por validación de claves")
+    void createSecretWithRealSecurityEventPublisherSucceeds() {
+        DefaultSecurityEventPublisher realPublisher = new DefaultSecurityEventPublisher(applicationEventPublisher, clock);
+        SecretService serviceWithRealPublisher = new SecretService(
+                repository,
+                envelopeService,
+                tokenService,
+                keyProvider,
+                realPublisher,
+                applicationEventPublisher,
+                clock
+        );
+
+        CreateSecretCommand cmd = new CreateSecretCommand(
+                "Super secret content".getBytes(StandardCharsets.UTF_8),
+                Duration.ofHours(1),
+                1,
+                UUID.randomUUID(),
+                null,
+                "Test",
+                "password-segura-123"
+        );
+
+        CreateSecretResult result = serviceWithRealPublisher.createSecret(cmd);
+        assertNotNull(result);
+        assertNotNull(result.secretId());
+        assertNotNull(result.rawToken());
     }
 }

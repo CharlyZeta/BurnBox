@@ -73,8 +73,15 @@ public class DefaultSecurityEventPublisher implements SecurityEventPublisher {
             return;
         }
 
-        for (String key : details.keySet()) {
+        for (Map.Entry<String, Object> entry : details.entrySet()) {
+            String key = entry.getKey();
             String lowerKey = key.toLowerCase(Locale.ROOT);
+
+            // Boolean metadata flags (e.g. passphrase_protected, password_enabled) are non-sensitive status indicators
+            if (lowerKey.endsWith("_protected") || lowerKey.endsWith("_enabled") || lowerKey.endsWith("_configured")) {
+                continue;
+            }
+
             for (String forbidden : FORBIDDEN_DETAIL_KEYS) {
                 if (lowerKey.contains(forbidden)) {
                     throw new IllegalArgumentException(
