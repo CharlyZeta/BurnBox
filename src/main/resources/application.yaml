@@ -11,6 +11,9 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    mail:
+      enabled: false
 
 spring:
   application:
@@ -26,6 +29,9 @@ spring:
   thymeleaf:
     cache: false
     mode: HTML
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
 
 logging:
   structured:

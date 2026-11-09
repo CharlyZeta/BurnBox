@@ -1,2 +1,2 @@
-@org.springframework.modulith.ApplicationModule(allowedDependencies = {"platform"})
+@org.springframework.modulith.ApplicationModule(allowedDependencies = {"platform", "identity"})
 package com.burnbox.notification;
