@@ -34,8 +34,8 @@ com.burnbox
 ├── secret           # Dominio del secreto, máquina de estados, repositorio FOR UPDATE y controller SSR
 ├── audit            # Registro append-only de eventos de seguridad con HMAC de IP
 ├── ratelimit        # Rate limiting y contramedidas de abuso (FEAT-0007)
-├── identity         # Autenticación OIDC federada, mitigación nOAuth, provisión de identidades (FEAT-0009)
-├── session          # Sesiones JDBC anónimas y de usuario (próximo)
+├── identity         # Autenticación OIDC federada, mitigación nOAuth, provisión de identidades (FEAT-0009, FEAT-0010)
+├── session          # Sesiones de usuario concurrentes, expiración dual (30m/12h) y revocación (FEAT-0011)
 ├── passkey          # Credenciales WebAuthn / FIDO2 (próximo)
 ├── notification     # Envío de notificaciones transaccionales vía Mailpit (próximo)
 └── ops              # Endpoints operativos y rotación de claves (próximo)
@@ -57,6 +57,7 @@ com.burnbox
 | [`FEAT-0008`](contracts/FEAT-0008.md) | Feature | **RESOLVED** | 22/22 ✅ | Secretos Protegidos por Passphrase (E3): KDF Argon2id con sal de 16 bytes y 19 MiB de memoria, semáforo de concurrencia acotado a 4 derivaciones, doble envoltura DEK (`passphraseKey` + KEK), pantalla SSR de contraseña con contador de intentos restantes, y autodestrucción atómica irreversible con emisión de `SecretDestroyedByAbuse` tras 5 fallos. |
 | [`FEAT-0009`](contracts/FEAT-0009.md) | Feature | **RESOLVED** | 22/22 ✅ | Identidad y Autenticación OIDC con Google: provisión atómica de usuarios según sección 6, invariante unívoco `(issuer, sub)`, mitigación estricta de secuestro de cuenta nOAuth (bloqueo de auto-merge ante colisiones de email), máquina de estados (`ACTIVE`, `DISABLED`, `PENDING_DELETION`), logout seguro `POST /logout` y eventos de dominio tipados sin PII. |
 | [`FEAT-0010`](contracts/FEAT-0010.md) | Feature | **RESOLVED** | 19/19 ✅ | Login con Microsoft y Validador Dinámico Multi-Tenant de Issuer: soporte para endpoint `common`, `MicrosoftIssuerValidator` con regex `^https://login\.microsoftonline\.com/({tid})/v2\.0$` y validación cruzada con el claim `tid`, verificación estricta de `email_verified == true` para prevenir vulnerabilidades de nOAuth / toma de cuentas preexistentes, y registro unívoco en `linked_identity`. |
+| [`FEAT-0011`](contracts/FEAT-0011.md) | Feature | **RESOLVED** | 21/21 ✅ | Sesiones Gestionables: metadatos de sesión persistidos en `user_session_meta` (`JdbcClient`), política de expiración dual (30 min inactividad, 12 horas timeout absoluto), vista web SSR `/account/sessions` con IP ofuscada, revocación unitaria con verificación de autoría (`POST /account/sessions/{id}/revoke`), revocación masiva de sesiones remotas (`POST /account/sessions/revoke-others`) y eventos de auditoría `SessionCreated`, `SessionRevoked`, `SessionExpired`. |
 
 ---
 
@@ -100,7 +101,7 @@ sequenceDiagram
 docker compose up -d
 ```
 
-### Ejecutar suite completa de tests (117 tests unitarios, de integración, arquitectura y seguridad)
+### Ejecutar suite completa de tests (131 tests unitarios, de integración, arquitectura y seguridad)
 ```bash
 ./mvnw test
 ```

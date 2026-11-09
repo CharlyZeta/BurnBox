@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Sesiones Activas — Burnbox</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1.5rem; }
+        .card { background-color: #1e293b; border-radius: 12px; padding: 2rem; max-width: 720px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid #334155; padding-bottom: 1rem; }
+        h1 { font-size: 1.5rem; margin: 0; }
+        .user-info { font-size: 0.875rem; color: #94a3b8; }
+        .alert-success { background-color: #064e3b; border: 1px solid #10b981; color: #a7f3d0; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.875rem; margin-bottom: 1.5rem; }
+        .session-list { list-style: none; padding: 0; margin: 0; }
+        .session-item { background-color: #020617; border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        .session-item.current { border-color: #3b82f6; }
+        .session-details { font-size: 0.875rem; }
+        .session-ua { font-weight: 600; color: #f8fafc; margin-bottom: 0.25rem; }
+        .session-meta { color: #94a3b8; font-size: 0.8rem; }
+        .badge-current { background-color: #2563eb; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: bold; margin-left: 0.5rem; }
+        .btn-revoke { background-color: #7f1d1d; color: #fecaca; border: 1px solid #ef4444; padding: 0.45rem 0.85rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .btn-revoke:hover { background-color: #991b1b; }
+        .actions-bar { margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #334155; padding-top: 1.25rem; }
+        .btn-revoke-others { background-color: #b45309; color: #fef3c7; border: 1px solid #f59e0b; padding: 0.6rem 1rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+        .btn-revoke-others:hover { background-color: #d97706; }
+        .btn-back { color: #94a3b8; text-decoration: none; font-size: 0.875rem; }
+        .btn-back:hover { color: #f8fafc; text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <div>
+                <h1>Gestión de Sesiones</h1>
+                <div class="user-info" th:text="${user != null ? user.primaryEmail : ''}"></div>
+            </div>
+            <a th:href="@{/}" class="btn-back">Volver al inicio</a>
+        </div>
+
+        <div th:if="${param.revoked != null}" class="alert-success">
+            Sesión remota revocada exitosamente.
+        </div>
+        <div th:if="${param.revokedOthers != null}" class="alert-success">
+            Todas las demás sesiones activas han sido revocadas.
+        </div>
+
+        <ul class="session-list">
+            <li th:each="sess : ${sessions}" class="session-item" th:classappend="${sess.sessionId == currentSessionId} ? ' current' : ''">
+                <div class="session-details">
+                    <div class="session-ua">
+                        <span th:text="${sess.userAgentSummary}"></span>
+                        <span th:if="${sess.sessionId == currentSessionId}" class="badge-current">Esta sesión</span>
+                    </div>
+                    <div class="session-meta">
+                        <span>IP ofuscada: </span><code th:text="${#strings.substring(sess.ipHash, 0, 12)} + '...'"></code>
+                        <span> · Creada: </span><span th:text="${sess.createdAt}"></span>
+                    </div>
+                </div>
+
+                <div th:if="${sess.sessionId != currentSessionId}">
+                    <form th:action="@{/account/sessions/{id}/revoke(id=${sess.sessionId})}" method="post">
+                        <button type="submit" class="btn-revoke">Revocar sesión</button>
+                    </form>
+                </div>
+            </li>
+        </ul>
+
+        <div class="actions-bar">
+            <form th:action="@{/account/sessions/revoke-others}" method="post">
+                <button type="submit" class="btn-revoke-others">Cerrar todas las demás sesiones</button>
+            </form>
+            <span style="font-size: 0.75rem; color: #64748b;">Timeout: 30 min inactividad · 12 h absoluto</span>
+        </div>
+    </div>
+</body>
+</html>

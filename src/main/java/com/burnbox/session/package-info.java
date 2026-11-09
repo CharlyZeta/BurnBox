@@ -1,2 +1,2 @@
-@org.springframework.modulith.ApplicationModule(allowedDependencies = {"identity", "platform"})
+@org.springframework.modulith.ApplicationModule(allowedDependencies = {"platform", "identity"})
 package com.burnbox.session;
