@@ -56,6 +56,7 @@ com.burnbox
 | [`FEAT-0007`](contracts/FEAT-0007.md) | Feature | **RESOLVED** | 22/22 ✅ | Rate Limiting y Protección contra Abuso: buckets Bucket4j en memoria (`reveal-ip` 20/min, `reveal-token` 10/min, `create-ip` 30/h), normalización IPv4 /24 e IPv6 /64, respuesta uniforme 429 con cabecera `Retry-After`, bloqueo por abuso de 1 hora ante 10 fallos de token en 5 min, y emisión del evento `AbuseIpFlagged`. |
 | [`FEAT-0008`](contracts/FEAT-0008.md) | Feature | **RESOLVED** | 22/22 ✅ | Secretos Protegidos por Passphrase (E3): KDF Argon2id con sal de 16 bytes y 19 MiB de memoria, semáforo de concurrencia acotado a 4 derivaciones, doble envoltura DEK (`passphraseKey` + KEK), pantalla SSR de contraseña con contador de intentos restantes, y autodestrucción atómica irreversible con emisión de `SecretDestroyedByAbuse` tras 5 fallos. |
 | [`FEAT-0009`](contracts/FEAT-0009.md) | Feature | **RESOLVED** | 22/22 ✅ | Identidad y Autenticación OIDC con Google: provisión atómica de usuarios según sección 6, invariante unívoco `(issuer, sub)`, mitigación estricta de secuestro de cuenta nOAuth (bloqueo de auto-merge ante colisiones de email), máquina de estados (`ACTIVE`, `DISABLED`, `PENDING_DELETION`), logout seguro `POST /logout` y eventos de dominio tipados sin PII. |
+| [`FEAT-0010`](contracts/FEAT-0010.md) | Feature | **RESOLVED** | 19/19 ✅ | Login con Microsoft y Validador Dinámico Multi-Tenant de Issuer: soporte para endpoint `common`, `MicrosoftIssuerValidator` con regex `^https://login\.microsoftonline\.com/({tid})/v2\.0$` y validación cruzada con el claim `tid`, verificación estricta de `email_verified == true` para prevenir vulnerabilidades de nOAuth / toma de cuentas preexistentes, y registro unívoco en `linked_identity`. |
 
 ---
 
@@ -99,7 +100,7 @@ sequenceDiagram
 docker compose up -d
 ```
 
-### Ejecutar suite completa de tests (108 tests unitarios, de integración, arquitectura y seguridad)
+### Ejecutar suite completa de tests (117 tests unitarios, de integración, arquitectura y seguridad)
 ```bash
 ./mvnw test
 ```

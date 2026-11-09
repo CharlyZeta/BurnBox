@@ -27,11 +27,29 @@ public class BurnboxOidcUserService extends OidcUserService {
     public BurnboxOidcUser processOidcUser(String registrationId, OidcUser oidcUser) throws OAuth2AuthenticationException {
         IdentityProvider provider = IdentityProvider.fromRegistrationId(registrationId);
 
-        String issuer = oidcUser.getIssuer() != null ? oidcUser.getIssuer().toString() : "https://accounts.google.com";
+        String issuer;
+        if (oidcUser.getIssuer() != null) {
+            issuer = oidcUser.getIssuer().toString();
+        } else if (provider == IdentityProvider.MICROSOFT) {
+            String tid = oidcUser.getClaimAsString("tid");
+            issuer = tid != null ? "https://login.microsoftonline.com/" + tid + "/v2.0" : "https://login.microsoftonline.com/common/v2.0";
+        } else {
+            issuer = "https://accounts.google.com";
+        }
+
         String subject = oidcUser.getSubject();
         String email = oidcUser.getEmail();
+        if (email == null || email.isBlank()) {
+            email = oidcUser.getPreferredUsername();
+        }
+
+        // BR-002: Strict email_verified invariant. If missing or false, cannot be treated as verified email
         boolean emailVerified = Boolean.TRUE.equals(oidcUser.getEmailVerified());
-        String displayName = oidcUser.getFullName() != null ? oidcUser.getFullName() : oidcUser.getPreferredUsername();
+
+        String displayName = oidcUser.getFullName();
+        if (displayName == null || displayName.isBlank()) {
+            displayName = oidcUser.getPreferredUsername();
+        }
         String locale = oidcUser.getLocale();
 
         OidcIdentityClaims claims = new OidcIdentityClaims(
