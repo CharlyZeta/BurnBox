@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "contract": "FEAT-0007",
+  "updated_at": "2026-11-09T15:22:05.469Z",
+  "criteria": {
+    "Main Flow": "7a0684dae03756ec",
+    "AF-01": "933950740dbd0cab",
+    "AF-02": "2e1a4d0625da1b2e",
+    "AF-03": "2d7de09b7ec857eb",
+    "AF-04": "82a6ded1d99c308e",
+    "BR-001": "acc2ff7b97f288c5",
+    "BR-002": "fe65d1b4cfb8bf30",
+    "BR-003": "3537edd6773aedc4",
+    "BR-004": "b77ce273dd505797",
+    "BR-005": "fde27d66971279da",
+    "BR-006": "f047914db673f5a4",
+    "AC-001": "f90e3d97c984f82d",
+    "AC-002": "721ecf114398f57e",
+    "AC-003": "80061230002679c5",
+    "AC-004": "6f57f322045fbe5f",
+    "AC-005": "6f2538813dd47a63",
+    "AC-006": "3b138f442e896a47",
+    "AC-007": "2cd0777de339281d",
+    "AC-008": "d81e2e9d6cdba384"
+  }
+}

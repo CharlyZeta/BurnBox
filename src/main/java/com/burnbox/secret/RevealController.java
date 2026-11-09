@@ -1,8 +1,11 @@
 package com.burnbox.secret;
 
 import com.burnbox.crypto.CryptoTokenService;
+import com.burnbox.ratelimit.AbuseDetector;
+import com.burnbox.ratelimit.ClientIpExtractor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -28,10 +31,19 @@ public class RevealController {
 
     private final SecretService secretService;
     private final CryptoTokenService tokenService;
+    private final AbuseDetector abuseDetector;
+    private final ClientIpExtractor ipExtractor;
 
-    public RevealController(SecretService secretService, CryptoTokenService tokenService) {
+    public RevealController(
+            SecretService secretService,
+            CryptoTokenService tokenService,
+            ObjectProvider<AbuseDetector> abuseDetectorProvider,
+            ObjectProvider<ClientIpExtractor> ipExtractorProvider
+    ) {
         this.secretService = secretService;
         this.tokenService = tokenService;
+        this.abuseDetector = abuseDetectorProvider.getIfAvailable();
+        this.ipExtractor = ipExtractorProvider.getIfAvailable();
     }
 
     @GetMapping("/{token}")
@@ -68,6 +80,7 @@ public class RevealController {
             @PathVariable("token") String token,
             @RequestParam(value = "_csrf", required = false) String formCsrf,
             @CookieValue(value = CSRF_COOKIE_NAME, required = false) String cookieCsrf,
+            HttpServletRequest request,
             HttpServletResponse response,
             Model model
     ) {
@@ -80,6 +93,7 @@ public class RevealController {
         }
 
         if (!isValidToken(token)) {
+            recordFailureIfPossible(request, token);
             return "reveal-unavailable";
         }
 
@@ -96,10 +110,19 @@ public class RevealController {
                 yield "reveal-content";
             }
             case SecretAccessResult.NotAvailable notAvailable -> {
+                recordFailureIfPossible(request, tokenHash);
                 // BR-005 / AC-005: Respuesta uniforme indistinguible para cualquier motivo de no disponibilidad
                 yield "reveal-unavailable";
             }
         };
+    }
+
+    private void recordFailureIfPossible(HttpServletRequest request, String tokenIdentifier) {
+        if (abuseDetector != null && ipExtractor != null && request != null) {
+            String clientIp = ipExtractor.extractClientIp(request);
+            String prefix = ipExtractor.normalizeToPrefix(clientIp);
+            abuseDetector.recordFailedTokenAttempt(prefix, tokenIdentifier);
+        }
     }
 
     private void addAntiCacheAndRobotsHeaders(HttpServletResponse response) {
