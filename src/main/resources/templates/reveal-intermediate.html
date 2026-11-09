@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Burnbox — Revelar Secreto</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .card { background-color: #1e293b; border-radius: 12px; padding: 2rem; max-width: 480px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; }
+        .badge { display: inline-block; background-color: #ef4444; color: white; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: bold; margin-bottom: 1rem; }
+        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        p { color: #94a3b8; font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem; }
+        button { background-color: #3b82f6; hover: background-color: #2563eb; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s; }
+        button:hover { background-color: #2563eb; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <span class="badge">CONFIDENCIAL</span>
+        <h1>Secreto Efímero</h1>
+        <p>Has recibido un enlace con un secreto confidencial. Al hacer clic en el botón inferior, accederás a su contenido.</p>
+        <form th:action="@{'/s/' + ${token} + '/reveal'}" method="post">
+            <input type="hidden" name="_csrf" th:value="${csrfToken}"/>
+            <button type="submit">Revelar secreto</button>
+        </form>
+    </div>
+</body>
+</html>

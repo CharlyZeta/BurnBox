@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Burnbox — Contenido del Secreto</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1rem; }
+        .card { background-color: #1e293b; border-radius: 12px; padding: 2rem; max-width: 640px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .banner { background-color: #dc2626; color: white; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.875rem; margin-bottom: 1.5rem; text-align: center; }
+        .banner-warning { background-color: #d97706; }
+        pre { background-color: #020617; border: 1px solid #334155; border-radius: 8px; padding: 1.25rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.95rem; color: #38bdf8; overflow-x: auto; white-space: pre-wrap; word-break: break-all; margin-bottom: 1.5rem; }
+        .copy-btn { background-color: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; cursor: pointer; float: right; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div th:if="${state.name() == 'CONSUMED'}" class="banner">
+            ⚠️ Este secreto ha sido consumido y su copia cifrada ha sido destruida del servidor.
+        </div>
+        <div th:unless="${state.name() == 'CONSUMED'}" class="banner banner-warning">
+            ℹ️ Visualización <span th:text="${views}"></span> de <span th:text="${maxViews}"></span> permitidas.
+        </div>
+
+        <h2>Contenido Seguro</h2>
+        <pre id="secret-payload" th:text="${content}"></pre>
+
+        <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('secret-payload').innerText)">Copiar</button>
+    </div>
+</body>
+</html>
