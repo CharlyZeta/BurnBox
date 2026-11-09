@@ -21,10 +21,22 @@ class ActuatorHealthTest {
     private MockMvc mockMvc;
 
     @Test
-    @DisplayName("AC-003: Actuator health endpoint retorna 200 con status UP")
+    @DisplayName("AC-001, AC-003, AC-006 & AC-007: Actuator health endpoint retorna UP con componentes key y jobs sin fugar secretos")
     void healthEndpointReturnsUp() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("UP"));
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.components.key.status").value("UP"))
+                .andExpect(jsonPath("$.components.key.details.active_version").exists())
+                .andExpect(jsonPath("$.components.key.details.kek").doesNotExist())
+                .andExpect(jsonPath("$.components.jobs.status").value("UP"))
+                .andExpect(jsonPath("$.components.jobs.details.recent_runs_count").exists());
+    }
+
+    @Test
+    @DisplayName("AC-005: Actuator info endpoint responde 200")
+    void infoEndpointReturnsOk() throws Exception {
+        mockMvc.perform(get("/actuator/info"))
+                .andExpect(status().isOk());
     }
 }
