@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Passkeys WebAuthn — Burnbox</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1.5rem; }
+        .card { background-color: #1e293b; border-radius: 12px; padding: 2rem; max-width: 680px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid #334155; padding-bottom: 1rem; }
+        h1 { font-size: 1.5rem; margin: 0; }
+        .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .badge-active { background-color: #10b981; color: white; }
+        .badge-pending { background-color: #f59e0b; color: black; }
+        .badge-revoked { background-color: #64748b; color: white; }
+        .alert-success { background-color: #064e3b; border: 1px solid #10b981; color: #a7f3d0; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.875rem; margin-bottom: 1.5rem; }
+        .passkey-list { list-style: none; padding: 0; margin: 0; }
+        .passkey-item { background-color: #020617; border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        .passkey-label { font-weight: 600; color: #f8fafc; margin-bottom: 0.25rem; }
+        .passkey-meta { color: #94a3b8; font-size: 0.8rem; }
+        .btn-revoke { background-color: #7f1d1d; color: #fecaca; border: 1px solid #ef4444; padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+        .btn-revoke:hover { background-color: #991b1b; }
+        .btn-back { color: #94a3b8; text-decoration: none; font-size: 0.875rem; }
+        .btn-back:hover { color: #f8fafc; text-decoration: underline; }
+        .security-box { margin-top: 1.5rem; background-color: #020617; border: 1px solid #1e293b; padding: 1rem; border-radius: 8px; font-size: 0.75rem; color: #94a3b8; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <div>
+                <h1>Mis Passkeys (FIDO2)</h1>
+                <div style="font-size: 0.875rem; color: #94a3b8;" th:text="${user != null ? user.primaryEmail : ''}"></div>
+            </div>
+            <a th:href="@{/}" class="btn-back">Volver al inicio</a>
+        </div>
+
+        <div th:if="${param.revoked != null}" class="alert-success">
+            Passkey revocada exitosamente.
+        </div>
+
+        <div th:if="${passkeys.empty}" style="text-align: center; color: #94a3b8; padding: 2rem;">
+            No tienes ninguna passkey registrada actualmente.
+        </div>
+
+        <ul class="passkey-list">
+            <li th:each="pk : ${passkeys}" class="passkey-item">
+                <div>
+                    <div class="passkey-label">
+                        <span th:text="${pk.label}"></span>
+                        <span th:if="${pk.state.name() == 'ACTIVE'}" class="badge badge-active">ACTIVA</span>
+                        <span th:if="${pk.state.name() == 'PENDING_ACTIVATION'}" class="badge badge-pending">EN CUARENTENA 24H</span>
+                        <span th:if="${pk.state.name() == 'REVOKED'}" class="badge badge-revoked">REVOCADA</span>
+                    </div>
+                    <div class="passkey-meta">
+                        <span>Creada: </span><span th:text="${pk.createdAt}"></span>
+                        <span th:if="${pk.activatesAt != null}"> · Se activa: <span th:text="${pk.activatesAt}"></span></span>
+                        <span> · Firmas: </span><span th:text="${pk.signCount}"></span>
+                    </div>
+                </div>
+
+                <div th:if="${pk.state.name() != 'REVOKED'}">
+                    <form th:action="@{/account/passkeys/{id}/revoke(id=${pk.credentialIdHex})}" method="post">
+                        <button type="submit" class="btn-revoke">Revocar</button>
+                    </form>
+                </div>
+            </li>
+        </ul>
+
+        <div class="security-box">
+            <strong>🛡️ Protección contra secuestro de sesión:</strong> La primera passkey registrada inicia un período de cuarentena de 24 horas antes de poder utilizarse para step-up o autenticación sensible. Las passkeys adicionales se activan de inmediato.
+        </div>
+    </div>
+</body>
+</html>
