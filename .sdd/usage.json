@@ -1,38 +1,38 @@
 {
   "schema_version": 1,
   "first_seen": "2026-11-08T22:13:02.495Z",
-  "last_updated": "2026-11-09T14:15:16.188Z",
+  "last_updated": "2026-11-09T14:15:40.326Z",
   "sessions": 0,
   "session_log": [],
   "clients": {},
   "sources": {
     "mcp": 0,
-    "cli": 307
+    "cli": 309
   },
   "by_type": {
     "feature": 278,
     "fix": 0,
-    "unknown": 29
+    "unknown": 31
   },
   "cli_commands": {
-    "status": 18,
+    "status": 19,
     "new": 5,
     "graph": 4,
     "validate": 32,
-    "next": 7,
+    "next": 8,
     "approve": 5,
     "loop": 231,
     "report": 5
   },
   "tools": {
-    "sdd_get_status": 29,
+    "sdd_get_status": 31,
     "sdd_create_contract": 5,
     "sdd_validate_gate": 37,
     "sdd_step_loop": 231,
     "sdd_get_metrics": 5
   },
   "totals": {
-    "calls": 307,
+    "calls": 309,
     "errors": 0
   }
 }
