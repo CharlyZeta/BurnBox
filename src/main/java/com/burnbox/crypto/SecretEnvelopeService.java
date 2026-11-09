@@ -52,7 +52,7 @@ public class SecretEnvelopeService {
         }
     }
 
-    public byte[] decrypt(SecretEnvelope envelope, UUID secretId) throws AEADBadTagException {
+    public byte[] decrypt(SecretEnvelope envelope, UUID secretId) {
         Objects.requireNonNull(envelope, "envelope must not be null");
         Objects.requireNonNull(secretId, "secretId must not be null");
 
@@ -69,7 +69,7 @@ public class SecretEnvelopeService {
 
             return cipher.doFinal(envelope.ciphertext());
         } catch (AEADBadTagException e) {
-            throw e; // Se propaga explícitamente para verificación de integridad/tampering
+            throw new CryptoException("Authentication tag verification failed: tampering or invalid AAD", e);
         } catch (GeneralSecurityException e) {
             throw new CryptoException("Failed to decrypt secret payload with AES-GCM", e);
         }

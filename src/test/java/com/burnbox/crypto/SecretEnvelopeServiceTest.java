@@ -45,7 +45,8 @@ class SecretEnvelopeServiceTest {
         SecretEnvelope envelope = envelopeService.encrypt(plaintext, originalSecretId, 1);
 
         assertThatThrownBy(() -> envelopeService.decrypt(envelope, attackerSecretId))
-                .isInstanceOf(AEADBadTagException.class);
+                .isInstanceOf(CryptoException.class)
+                .hasCauseInstanceOf(AEADBadTagException.class);
     }
 
     @Test
@@ -68,7 +69,8 @@ class SecretEnvelopeServiceTest {
         );
 
         assertThatThrownBy(() -> envelopeService.decrypt(tamperedEnvelope, secretId))
-                .isInstanceOf(AEADBadTagException.class);
+                .isInstanceOf(CryptoException.class)
+                .hasCauseInstanceOf(AEADBadTagException.class);
     }
 
     @Test
@@ -91,6 +93,7 @@ class SecretEnvelopeServiceTest {
         );
 
         assertThatThrownBy(() -> envelopeService.decrypt(tamperedEnvelope, secretId))
-                .isInstanceOf(AEADBadTagException.class);
+                .isInstanceOf(CryptoException.class)
+                .hasCauseInstanceOf(AEADBadTagException.class);
     }
 }

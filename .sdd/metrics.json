@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-11-09T13:45:05.180Z",
+  "last_updated": "2026-11-09T13:59:21.066Z",
   "first_pass_quality_rate": 100,
   "average_retries": 0,
   "layer_success_rates": {
@@ -11,33 +11,33 @@
   },
   "ambiguity_escalation_rate": 0,
   "counters": {
-    "steps_total": 67,
-    "steps_pass": 67,
+    "steps_total": 91,
+    "steps_pass": 91,
     "steps_fail": 0,
     "steps_blocked": 0,
     "retries_total": 0,
     "ambiguities_escalated": 0,
-    "contracts_resolved": 3
+    "contracts_resolved": 4
   },
   "per_layer": {
     "functional": {
-      "steps": 58,
-      "pass": 58,
+      "steps": 79,
+      "pass": 79,
       "fail": 0
     },
     "static": {
-      "steps": 3,
-      "pass": 3,
+      "steps": 4,
+      "pass": 4,
       "fail": 0
     },
     "security": {
-      "steps": 3,
-      "pass": 3,
+      "steps": 4,
+      "pass": 4,
       "fail": 0
     },
     "arch": {
-      "steps": 3,
-      "pass": 3,
+      "steps": 4,
+      "pass": 4,
       "fail": 0
     }
   }
