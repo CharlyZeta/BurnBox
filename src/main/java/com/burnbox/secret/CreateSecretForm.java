@@ -6,10 +6,15 @@ public record CreateSecretForm(
         String content,
         String ttl,
         Integer maxViews,
-        String passphrase
+        String passphrase,
+        String recipientEmail
 ) {
     public CreateSecretForm(String content, String ttl, Integer maxViews) {
-        this(content, ttl, maxViews, null);
+        this(content, ttl, maxViews, null, null);
+    }
+
+    public CreateSecretForm(String content, String ttl, Integer maxViews, String passphrase) {
+        this(content, ttl, maxViews, passphrase, null);
     }
 
     public CreateSecretForm {

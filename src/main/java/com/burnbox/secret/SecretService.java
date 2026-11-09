@@ -109,13 +109,57 @@ public class SecretService {
         return new CreateSecretResult(secretId, rawToken, tokenHash, expiresAt);
     }
 
+    @Transactional(readOnly = true)
+    public SecretAccessResult checkAccess(String tokenHash, String callerEmail, boolean callerEmailVerified) {
+        if (tokenHash == null || tokenHash.isBlank()) {
+            return new SecretAccessResult.NotAvailable("Invalid token hash");
+        }
+
+        Instant now = Instant.now(clock);
+        Optional<Secret> optionalSecret = repository.findByTokenHash(tokenHash);
+
+        if (optionalSecret.isEmpty()) {
+            return new SecretAccessResult.NotAvailable("Secret not found or already consumed");
+        }
+
+        Secret secret = optionalSecret.get();
+
+        if (secret.state().isTerminal() || secret.isExpired(now) || secret.views() >= secret.maxViews()) {
+            return new SecretAccessResult.NotAvailable("Secret unavailable");
+        }
+
+        // BR-002, BR-003, BR-004: Restricción de destinatario
+        if (secret.recipientEmail() != null && !secret.recipientEmail().isBlank()) {
+            if (callerEmail == null || callerEmail.isBlank() || !callerEmailVerified) {
+                return new SecretAccessResult.RecipientLoginRequired();
+            }
+            if (!secret.recipientEmail().equalsIgnoreCase(callerEmail.trim())) {
+                securityEventPublisher.publish("SECRET_ACCESS_DENIED", "secret", secret.id().toString(), Map.of(
+                        "reason", "recipient_mismatch"
+                ));
+                return new SecretAccessResult.NotAvailable("Secret unavailable");
+            }
+        }
+
+        if (secret.passphraseProtected()) {
+            return new SecretAccessResult.PassphraseRequired();
+        }
+
+        return new SecretAccessResult.Success(new byte[0], secret.views(), secret.maxViews(), secret.state());
+    }
+
     @Transactional
     public SecretAccessResult consumeSecret(String tokenHash) {
-        return consumeSecret(tokenHash, null);
+        return consumeSecret(tokenHash, null, null, false);
     }
 
     @Transactional
     public SecretAccessResult consumeSecret(String tokenHash, String passphrase) {
+        return consumeSecret(tokenHash, passphrase, null, false);
+    }
+
+    @Transactional
+    public SecretAccessResult consumeSecret(String tokenHash, String passphrase, String callerEmail, boolean callerEmailVerified) {
         if (tokenHash == null || tokenHash.isBlank()) {
             return new SecretAccessResult.NotAvailable("Invalid token hash");
         }
@@ -143,6 +187,22 @@ public class SecretService {
         if (secret.views() >= secret.maxViews()) {
             repository.updateStateAndViews(secret.id(), SecretState.CONSUMED, secret.views(), now);
             return new SecretAccessResult.NotAvailable("Secret views exhausted");
+        }
+
+        // BR-002, BR-003, BR-004: Restricción de destinatario
+        if (secret.recipientEmail() != null && !secret.recipientEmail().isBlank()) {
+            if (callerEmail == null || callerEmail.isBlank() || !callerEmailVerified) {
+                securityEventPublisher.publish("SECRET_ACCESS_DENIED", "secret", secret.id().toString(), Map.of(
+                        "reason", "unauthenticated_recipient"
+                ));
+                return new SecretAccessResult.RecipientLoginRequired();
+            }
+            if (!secret.recipientEmail().equalsIgnoreCase(callerEmail.trim())) {
+                securityEventPublisher.publish("SECRET_ACCESS_DENIED", "secret", secret.id().toString(), Map.of(
+                        "reason", "recipient_mismatch"
+                ));
+                return new SecretAccessResult.NotAvailable("Secret unavailable");
+            }
         }
 
         // Passphrase handling

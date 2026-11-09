@@ -80,6 +80,16 @@ public class SecretRepository {
                 .optional();
     }
 
+    public Optional<Secret> findByTokenHash(String tokenHash) {
+        return client().sql("""
+                SELECT * FROM secret
+                WHERE token_hash = :tokenHash
+                """)
+                .param("tokenHash", tokenHash)
+                .query(new SecretRowMapper())
+                .optional();
+    }
+
     public Optional<Secret> findById(UUID id) {
         return client().sql("""
                 SELECT * FROM secret

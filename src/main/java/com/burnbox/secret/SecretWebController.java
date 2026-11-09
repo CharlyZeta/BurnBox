@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Controller for creating secrets via server-side rendered forms.
@@ -26,6 +27,7 @@ public class SecretWebController {
 
     public static final int MAX_CONTENT_BYTES = 65536; // 64 KiB
     private static final Set<String> ALLOWED_TTLS = Set.of("5m", "1h", "1d", "7d");
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
     private final SecretService secretService;
 
@@ -93,12 +95,23 @@ public class SecretWebController {
             return "index";
         }
 
+        String recipientEmail = (form.recipientEmail() != null && !form.recipientEmail().isBlank())
+                ? form.recipientEmail().trim().toLowerCase()
+                : null;
+
+        if (recipientEmail != null && !EMAIL_PATTERN.matcher(recipientEmail).matches()) {
+            response.setStatus(HttpStatus.BAD_REQUEST.value());
+            model.addAttribute("error", "El formato del email de destinatario es inválido");
+            model.addAttribute("form", form);
+            return "index";
+        }
+
         CreateSecretCommand cmd = new CreateSecretCommand(
                 plaintext,
                 ttl,
                 maxViews,
                 ownerUserId,
-                null,
+                recipientEmail,
                 null,
                 passphrase
         );

@@ -1,13 +1,14 @@
 package com.burnbox.secret;
 
 /**
- * BR-007: Pure domain sealed result hierarchy for exhaustive handling of secret access attempts.
+ * BR-007 / FEAT-0014: Pure domain sealed result hierarchy for exhaustive handling of secret access attempts.
  */
 public sealed interface SecretAccessResult permits
         SecretAccessResult.Success,
         SecretAccessResult.NotAvailable,
         SecretAccessResult.PassphraseRequired,
-        SecretAccessResult.WrongPassphrase {
+        SecretAccessResult.WrongPassphrase,
+        SecretAccessResult.RecipientLoginRequired {
 
     record Success(
             byte[] plaintext,
@@ -28,5 +29,8 @@ public sealed interface SecretAccessResult permits
     record WrongPassphrase(
             int remainingAttempts
     ) implements SecretAccessResult {
+    }
+
+    record RecipientLoginRequired() implements SecretAccessResult {
     }
 }

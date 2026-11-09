@@ -52,7 +52,7 @@ class RevealControllerTest {
                 .andExpect(header().string("X-Robots-Tag", "noindex, nofollow"));
 
         // Se verifica que NUNCA se invoca al servicio de consumo en un GET (BR-001)
-        verifyNoInteractions(secretService);
+        verify(secretService, never()).consumeSecret(any());
     }
 
     @Test
