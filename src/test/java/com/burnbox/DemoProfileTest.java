@@ -19,11 +19,24 @@ class DemoProfileTest {
     @Autowired
     private Environment environment;
 
+    @Autowired
+    private net.javacrumbs.shedlock.core.LockProvider lockProvider;
+
+    @Autowired
+    private com.burnbox.ops.ExpiredSecretPurgeJob expiredSecretPurgeJob;
+
     @Test
     @DisplayName("AF-03: Perfil demo acota TTL máximo a 1 hora y cuota de creación a 5 por hora")
     void demoProfileConfiguresBoundedLimits() {
         assertThat(environment.getProperty("burnbox.demo.enabled", Boolean.class)).isTrue();
         assertThat(environment.getProperty("burnbox.demo.max-ttl-hours", Integer.class)).isEqualTo(1);
         assertThat(environment.getProperty("burnbox.demo.create-rate-limit-per-hour", Integer.class)).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("C-17 / Demo: LockProvider fallback presente y tarea programada se invoca limpiamente sin DB")
+    void demoProfileHasFallbackLockProviderAndRunsSafely() {
+        assertThat(lockProvider).isNotNull();
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> expiredSecretPurgeJob.schedule());
     }
 }
