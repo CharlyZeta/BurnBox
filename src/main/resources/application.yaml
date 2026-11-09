@@ -34,9 +34,8 @@ spring:
     port: ${SPRING_MAIL_PORT:1025}
 
 logging:
-  structured:
-    format:
-      console: ecs
+  pattern:
+    console: "%clr(%d{HH:mm:ss}){faint} %clr(%-5level) %clr(%-28.28logger{25}){cyan} %clr(│){faint} %msg%n%wEx"
 
 burnbox:
   security:
