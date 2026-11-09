@@ -33,9 +33,9 @@ com.burnbox
 ├── crypto           # Tokens de 256 bits, AES-256-GCM con AAD, envelope y KeyProvider
 ├── secret           # Dominio del secreto, máquina de estados, repositorio FOR UPDATE y controller SSR
 ├── audit            # Registro append-only de eventos de seguridad con HMAC de IP
-├── ratelimit        # Rate limiting y contramedidas de abuso (próximo)
+├── ratelimit        # Rate limiting y contramedidas de abuso (FEAT-0007)
+├── identity         # Autenticación OIDC federada, mitigación nOAuth, provisión de identidades (FEAT-0009)
 ├── session          # Sesiones JDBC anónimas y de usuario (próximo)
-├── identity         # Autenticación OIDC y gestión de usuarios (próximo)
 ├── passkey          # Credenciales WebAuthn / FIDO2 (próximo)
 ├── notification     # Envío de notificaciones transaccionales vía Mailpit (próximo)
 └── ops              # Endpoints operativos y rotación de claves (próximo)
@@ -55,6 +55,7 @@ com.burnbox
 | [`FEAT-0006`](contracts/FEAT-0006.md) | Feature | **RESOLVED** | 23/23 ✅ | Creación web de secretos SSR: formulario principal `GET /`, validación de carga útil estricta (máx 64 KiB), selector de vencimiento (5m, 1h, 1d, 7d) y límite de visitas (1..10), endpoint `POST /secrets`, presentación de link único con botón de copiado (`secret-created.html`) sin `th:utext`. |
 | [`FEAT-0007`](contracts/FEAT-0007.md) | Feature | **RESOLVED** | 22/22 ✅ | Rate Limiting y Protección contra Abuso: buckets Bucket4j en memoria (`reveal-ip` 20/min, `reveal-token` 10/min, `create-ip` 30/h), normalización IPv4 /24 e IPv6 /64, respuesta uniforme 429 con cabecera `Retry-After`, bloqueo por abuso de 1 hora ante 10 fallos de token en 5 min, y emisión del evento `AbuseIpFlagged`. |
 | [`FEAT-0008`](contracts/FEAT-0008.md) | Feature | **RESOLVED** | 22/22 ✅ | Secretos Protegidos por Passphrase (E3): KDF Argon2id con sal de 16 bytes y 19 MiB de memoria, semáforo de concurrencia acotado a 4 derivaciones, doble envoltura DEK (`passphraseKey` + KEK), pantalla SSR de contraseña con contador de intentos restantes, y autodestrucción atómica irreversible con emisión de `SecretDestroyedByAbuse` tras 5 fallos. |
+| [`FEAT-0009`](contracts/FEAT-0009.md) | Feature | **RESOLVED** | 22/22 ✅ | Identidad y Autenticación OIDC con Google: provisión atómica de usuarios según sección 6, invariante unívoco `(issuer, sub)`, mitigación estricta de secuestro de cuenta nOAuth (bloqueo de auto-merge ante colisiones de email), máquina de estados (`ACTIVE`, `DISABLED`, `PENDING_DELETION`), logout seguro `POST /logout` y eventos de dominio tipados sin PII. |
 
 ---
 
@@ -98,7 +99,7 @@ sequenceDiagram
 docker compose up -d
 ```
 
-### Ejecutar suite completa de tests (94 tests unitarios, de integración, arquitectura y seguridad)
+### Ejecutar suite completa de tests (108 tests unitarios, de integración, arquitectura y seguridad)
 ```bash
 ./mvnw test
 ```

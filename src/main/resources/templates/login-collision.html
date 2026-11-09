@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Conflicto de Identidad — Burnbox</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1rem; }
+        .card { background-color: #1e293b; border-radius: 12px; padding: 2rem; max-width: 480px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; }
+        .badge-warning { display: inline-block; background-color: #f59e0b; color: #000000; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: bold; margin-bottom: 0.5rem; }
+        h1 { font-size: 1.5rem; margin: 0 0 0.5rem 0; color: #f59e0b; }
+        .explanation { color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin: 1.5rem 0; text-align: left; background-color: #020617; padding: 1.25rem; border-radius: 8px; border: 1px solid #334155; }
+        .btn-primary { display: inline-block; background-color: #2563eb; color: white; padding: 0.85rem 1.5rem; border-radius: 8px; font-size: 1rem; font-weight: 600; text-decoration: none; width: 100%; box-sizing: border-box; transition: background 0.2s; }
+        .btn-primary:hover { background-color: #1d4ed8; }
+        .security-note { font-size: 0.75rem; color: #64748b; margin-top: 1.5rem; line-height: 1.4; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <span class="badge-warning">SEGURIDAD nOAuth</span>
+        <h1>Cuenta Existente Detectada</h1>
+
+        <div class="explanation">
+            <p style="margin-top: 0;"><strong>Por razones de seguridad estricta:</strong></p>
+            <p>La dirección de correo electrónico asociada a esta cuenta de Google ya está registrada en Burnbox a través de otro método o identidad previa.</p>
+            <p>Para prevenir ataques de toma de cuenta (<strong>nOAuth / Pre-Account Takeover</strong>), Burnbox <strong>nunca fusiona cuentas automáticamente</strong> por coincidencia de email.</p>
+            <p style="margin-bottom: 0;">Inicia sesión con tu proveedor habitual. Podrás vincular este nuevo proveedor de forma segura desde los ajustes de tu cuenta.</p>
+        </div>
+
+        <a th:href="@{/login}" class="btn-primary">Volver al inicio de sesión</a>
+
+        <div class="security-note">
+            Protección criptográfica y mitigación nOAuth activa según las directrices de seguridad de Burnbox.
+        </div>
+    </div>
+</body>
+</html>
