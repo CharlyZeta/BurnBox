@@ -9,6 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -66,6 +67,57 @@ public class SecretRepository {
                 .param("failedAttempts", secret.failedAttempts())
                 .param("recipientEmail", secret.recipientEmail())
                 .param("label", secret.label())
+                .update();
+    }
+
+    public record ExpiredSecretRecord(UUID id, String tokenHash) {}
+
+    public List<ExpiredSecretRecord> purgeExpiredSecrets(Instant now, int batchSize) {
+        return client().sql("""
+                WITH to_expire AS (
+                    SELECT id, token_hash FROM secret
+                    WHERE state = 'ACTIVE' AND expires_at < :now
+                    ORDER BY expires_at ASC
+                    LIMIT :batchSize
+                    FOR UPDATE SKIP LOCKED
+                )
+                UPDATE secret s
+                SET state = 'EXPIRED',
+                    consumed_at = :now,
+                    ciphertext = NULL,
+                    nonce = NULL,
+                    wrapped_dek = NULL,
+                    passphrase_salt = NULL,
+                    recipient_email = NULL
+                FROM to_expire
+                WHERE s.id = to_expire.id
+                RETURNING s.id, s.token_hash
+                """)
+                .param("now", Timestamp.from(now))
+                .param("batchSize", batchSize)
+                .query((rs, rowNum) -> new ExpiredSecretRecord(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("token_hash")
+                ))
+                .list();
+    }
+
+    public int deleteTombstones(Instant olderThan, int batchSize) {
+        return client().sql("""
+                WITH to_delete AS (
+                    SELECT id FROM secret
+                    WHERE state <> 'ACTIVE'
+                      AND ((consumed_at IS NOT NULL AND consumed_at < :olderThan) OR (consumed_at IS NULL AND expires_at < :olderThan))
+                    ORDER BY id ASC
+                    LIMIT :batchSize
+                    FOR UPDATE SKIP LOCKED
+                )
+                DELETE FROM secret s
+                USING to_delete
+                WHERE s.id = to_delete.id
+                """)
+                .param("olderThan", Timestamp.from(olderThan))
+                .param("batchSize", batchSize)
                 .update();
     }
 

@@ -122,6 +122,18 @@ public class UserSessionRepository {
                 .update();
     }
 
+    public int deleteExpiredSessions(Instant inactiveThreshold, Instant absoluteThreshold) {
+        return jdbc().sql("""
+                DELETE FROM user_session_meta
+                WHERE revoked = TRUE
+                   OR last_accessed_at < :inactiveThreshold
+                   OR created_at < :absoluteThreshold
+                """)
+                .param("inactiveThreshold", OffsetDateTime.ofInstant(inactiveThreshold, ZoneOffset.UTC))
+                .param("absoluteThreshold", OffsetDateTime.ofInstant(absoluteThreshold, ZoneOffset.UTC))
+                .update();
+    }
+
     private static Instant toInstant(Timestamp ts) {
         return ts != null ? ts.toInstant() : null;
     }

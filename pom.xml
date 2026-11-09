@@ -93,6 +93,18 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
+        <!-- Background Jobs & Distributed Lock (C-17): ShedLock coordina la ejecución distribuida de jobs periódicos sobre PostgreSQL (ADR-005) -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>6.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+            <version>6.2.0</version>
+        </dependency>
+
         <!-- Cryptography: Argon2id KDF -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
